@@ -1,0 +1,448 @@
+You are a senior software architect and full-stack AI engineer. Design and implement a FULL PRODUCTION-GRADE AI-Powered MOM (Minutes of Meeting) Management System with the following strict requirements.
+
+The goal of the system:
+Convert uploaded MOM documents OR manually filled MOM forms into structured meeting records, automatically extract tasks, assign responsibilities, send notifications, track progress, track attendance, and provide a professional dashboard for CEO / Manager / HR.
+
+The system must be scalable, modular, maintainable, and production-ready.
+
+--------------------------------------------------
+CORE TECHNOLOGY STACK
+--------------------------------------------------
+
+Backend
+- FastAPI
+- LangChain
+- LangGraph (for workflow orchestration)
+- Pydantic (for schemas and validation)
+- SQLite (local database for now but easily replaceable with PostgreSQL)
+- SQLAlchemy ORM
+- Alembic migrations
+- Python 3.11+
+
+AI
+- OpenAI API
+- LangChain structured output
+- LangGraph workflow for processing MOM documents
+
+Frontend
+- React
+- TypeScript
+- Vite
+- TailwindCSS
+- ShadCN UI or Material UI
+- Axios
+- React Query
+- Zustand or Redux for state
+
+Notifications
+- Email (SMTP implementation)
+- WhatsApp API structure (Twilio style integration placeholder but implementable)
+
+Storage
+- Local file storage for PDFs (design abstraction for future cloud like S3)
+
+--------------------------------------------------
+SYSTEM CAPABILITIES
+--------------------------------------------------
+
+The system must support TWO MOM input methods:
+
+1) Upload MOM File
+   - Accept PDF
+   - Accept TXT
+   - Store file
+   - Extract text
+   - Send text to AI for structured extraction
+
+2) Manual MOM Creation
+   - HR/Manager fills structured form
+   - System generates MOM PDF
+   - Same downstream workflow as uploaded files
+
+--------------------------------------------------
+AI EXTRACTION REQUIREMENTS
+--------------------------------------------------
+
+AI must extract the following structured data:
+
+Meeting Details
+- organization_name
+- meeting_title
+- meeting_type
+- date
+- time
+- venue
+- meeting_called_by
+- meeting_prepared_by
+
+Participants
+- attendees
+- absentees
+
+Agenda
+- agenda topics
+- description
+
+Discussion Summary
+
+Action Items
+- task
+- responsible_person
+- deadline
+- status
+
+Next Meeting
+- date
+- time
+
+Use structured Pydantic models for extraction.
+
+--------------------------------------------------
+LANGGRAPH WORKFLOW
+--------------------------------------------------
+
+Implement a LangGraph pipeline with nodes:
+
+1 ExtractTextNode
+2 CleanTextNode
+3 MOMExtractionNode
+4 ValidateDataNode
+5 SaveMeetingNode
+6 CreateTasksNode
+7 NotificationNode
+
+Graph flow:
+
+Upload/Manual Input
+      ↓
+Text Extraction
+      ↓
+AI MOM Extraction
+      ↓
+Data Validation
+      ↓
+Database Save
+      ↓
+Task Creation
+      ↓
+Notifications
+
+--------------------------------------------------
+DATABASE DESIGN
+--------------------------------------------------
+
+Use SQLAlchemy models with relationships.
+
+Tables:
+
+users
+- id
+- name
+- email
+- role (CEO / Manager / HR / Employee)
+- phone
+
+meetings
+- id
+- title
+- organization
+- date
+- time
+- venue
+- created_by
+- file_path
+- created_at
+
+attendees
+- id
+- meeting_id
+- user_name
+- attendance_status
+
+agenda_items
+- id
+- meeting_id
+- topic
+- description
+
+discussion_summary
+- id
+- meeting_id
+- summary_text
+
+tasks
+- id
+- meeting_id
+- title
+- description
+- responsible_person
+- deadline
+- status
+
+task_history
+- id
+- task_id
+- previous_status
+- new_status
+- changed_at
+- changed_by
+
+notifications
+- id
+- user_id
+- message
+- type
+- sent_at
+
+next_meetings
+- id
+- meeting_id
+- next_date
+- next_time
+
+files
+- id
+- meeting_id
+- file_path
+- file_type
+- uploaded_at
+
+--------------------------------------------------
+BACKEND REQUIREMENTS
+--------------------------------------------------
+
+Use FastAPI with modular architecture.
+
+Project Structure:
+
+backend/
+  app/
+    api/
+    core/
+    models/
+    schemas/
+    services/
+    workflows/
+    utils/
+    database/
+    notifications/
+    ai/
+    routers/
+    config.py
+    main.py
+
+Important Features
+
+CRUD APIs for:
+- meetings
+- tasks
+- agenda
+- attendees
+- users
+
+File Upload API
+MOM Extraction API
+Task Update API
+Dashboard Analytics API
+
+Use dependency injection.
+
+Use Pydantic request/response models.
+
+All endpoints must be RESTful.
+
+--------------------------------------------------
+NOTIFICATION SYSTEM
+--------------------------------------------------
+
+Implement:
+
+Email Notification
+- SMTP integration
+- Send when task assigned
+- Send reminder before deadline
+- Send overdue alerts
+
+WhatsApp Integration
+- Twilio style service layer
+- send_whatsapp_message() function
+
+Notifications must be async background tasks.
+
+--------------------------------------------------
+TASK AUTOMATION FEATURES
+--------------------------------------------------
+
+Automatically:
+
+Create tasks from extracted Action Items.
+
+Assign responsible persons.
+
+Send notification to responsible person.
+
+Track task status:
+- Pending
+- In Progress
+- Completed
+
+Store every update in task_history.
+
+--------------------------------------------------
+ATTENDANCE TRACKING
+--------------------------------------------------
+
+Track meeting attendance.
+
+Rules:
+
+If user absent 3 times → send warning.
+
+Store attendance records in DB.
+
+--------------------------------------------------
+REMINDERS & WARNINGS
+--------------------------------------------------
+
+System must automatically generate:
+
+Task deadline reminder
+
+Overdue task warning
+
+Upcoming meeting reminder
+
+Frequent absentee warning
+
+Use scheduled background jobs.
+
+--------------------------------------------------
+FRONTEND REQUIREMENTS
+--------------------------------------------------
+
+React application must include:
+
+Professional enterprise UI.
+
+Pages:
+
+Dashboard
+Meetings
+Upload MOM
+Create MOM
+Tasks
+Attendance
+Users
+Notifications
+Analytics
+
+Dashboard Widgets:
+
+Total Meetings
+Pending Tasks
+Completed Tasks
+Overdue Tasks
+Upcoming Meetings
+
+Task Table:
+
+Task
+Responsible Person
+Deadline
+Status
+Meeting
+
+Meeting Page:
+
+Meeting details
+Agenda
+Discussion
+Tasks
+Attendees
+
+Upload Page:
+
+Drag & Drop PDF
+
+Manual MOM Page:
+
+Full structured form.
+
+--------------------------------------------------
+UI REQUIREMENTS
+--------------------------------------------------
+
+Modern SaaS design.
+
+Professional layout.
+
+Use:
+
+Sidebar navigation
+Top navigation bar
+Dark/light mode
+Charts for analytics
+Tables with filters
+Search functionality
+
+Use:
+
+Recharts / ChartJS for analytics.
+
+--------------------------------------------------
+SECURITY
+--------------------------------------------------
+
+JWT Authentication.
+
+Role-based access:
+
+CEO → full access
+
+Manager → meetings + tasks
+
+HR → create MOM + manage attendance
+
+Employee → view tasks
+
+--------------------------------------------------
+CODE QUALITY REQUIREMENTS
+--------------------------------------------------
+
+Code must be:
+
+Modular
+Scalable
+Well structured
+Typed
+Documented
+
+Use:
+
+Type hints
+Docstrings
+Service layer pattern
+Repository pattern
+
+--------------------------------------------------
+FINAL REQUIREMENTS
+--------------------------------------------------
+
+Provide:
+
+1 Complete backend project structure
+2 FastAPI application
+3 LangGraph workflow implementation
+4 Pydantic schemas
+5 SQLAlchemy models
+6 Notification service
+7 React frontend structure
+8 Example API endpoints
+9 Example AI extraction prompt
+10 Example dashboard UI components
+
+The system must be production-ready and easy to extend.
+
+Ensure CRUD operations can be added or modified without breaking the system.
+
+Generate clean, maintainable, enterprise-grade code.

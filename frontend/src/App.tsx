@@ -1,0 +1,45 @@
+import { Routes, Route } from 'react-router-dom';
+import { useThemeStore } from './store';
+import { useEffect } from 'react';
+
+import Layout from './components/Layout';
+import DashboardPage from './pages/DashboardPage';
+import MeetingsPage from './pages/MeetingsPage';
+import MeetingDetailPage from './pages/MeetingDetailPage';
+import UploadMOMPage from './pages/UploadMOMPage';
+import CreateMOMPage from './pages/CreateMOMPage';
+import TasksPage from './pages/TasksPage';
+import AttendancePage from './pages/AttendancePage';
+import UsersPage from './pages/UsersPage';
+import NotificationsPage from './pages/NotificationsPage';
+
+export default function App() {
+  const dark = useThemeStore((s) => s.dark);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+  }, [dark]);
+
+  return (
+    <Routes>
+      <Route
+        path="/*"
+        element={
+          <Layout>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/meetings" element={<MeetingsPage />} />
+              <Route path="/meetings/:id" element={<MeetingDetailPage />} />
+              <Route path="/upload" element={<UploadMOMPage />} />
+              <Route path="/create-mom" element={<CreateMOMPage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/attendance" element={<AttendancePage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+            </Routes>
+          </Layout>
+        }
+      />
+    </Routes>
+  );
+}
