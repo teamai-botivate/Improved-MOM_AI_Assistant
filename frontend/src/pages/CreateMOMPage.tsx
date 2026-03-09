@@ -123,7 +123,7 @@ export default function CreateMOMPage() {
   };
 
   const inputClass =
-    'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+    'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent';
   const labelClass = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
 
   return (
@@ -174,7 +174,7 @@ export default function CreateMOMPage() {
         <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Attendees</h3>
-            <button type="button" onClick={addAttendee} className="flex items-center gap-1 text-sm text-primary-600 hover:underline">
+            <button type="button" onClick={addAttendee} className="flex items-center gap-1 text-sm text-brand-600 hover:underline">
               <PlusIcon className="w-4 h-4" /> Add
             </button>
           </div>
@@ -198,7 +198,7 @@ export default function CreateMOMPage() {
         <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Agenda</h3>
-            <button type="button" onClick={addAgenda} className="flex items-center gap-1 text-sm text-primary-600 hover:underline">
+            <button type="button" onClick={addAgenda} className="flex items-center gap-1 text-sm text-brand-600 hover:underline">
               <PlusIcon className="w-4 h-4" /> Add
             </button>
           </div>
@@ -229,7 +229,7 @@ export default function CreateMOMPage() {
         <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Action Items / Tasks</h3>
-            <button type="button" onClick={addTask} className="flex items-center gap-1 text-sm text-primary-600 hover:underline">
+            <button type="button" onClick={addTask} className="flex items-center gap-1 text-sm text-brand-600 hover:underline">
               <PlusIcon className="w-4 h-4" /> Add
             </button>
           </div>
@@ -325,7 +325,7 @@ export default function CreateMOMPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition disabled:opacity-50"
+          className="w-full py-3 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium transition disabled:opacity-50"
         >
           {loading ? 'Creating Meeting...' : 'Create Meeting'}
         </button>

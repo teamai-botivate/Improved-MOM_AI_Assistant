@@ -1,0 +1,10 @@
+1. jb meeting shedule ho raha h ya ban raha h ya MOM create kiya ja rahe h , to organuization autofill hona chahiye n , 
+
+2. convert the Called by to Host By 
+3. remove the prepared by
+4. Add meeting mode (if Online - then venue will be google meet , zoom or other(type manual) else offline then conference hall , other)
+5. Not only meeting tab (but two tabs (Upcoming and completed )
+6. in the MOM Show the next meeting time and dates and their details (if filled ) at top not at buttom 
+
+
+Analyse eacha dn everything an then tell me Are you getting me , if yes then tell me what are you getting then i will tell you when to mofy the code 

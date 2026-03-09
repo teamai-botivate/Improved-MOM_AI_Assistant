@@ -44,7 +44,7 @@ export default function AttendancePage() {
           />
           <button
             onClick={handleSearch}
-            className="px-6 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition"
+            className="px-6 py-2 bg-brand-600 text-white rounded-lg text-sm hover:bg-brand-700 transition"
           >
             Search
           </button>

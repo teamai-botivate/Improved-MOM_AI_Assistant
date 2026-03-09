@@ -45,7 +45,7 @@ export default function NotificationsPage() {
                 {!n.is_read && (
                   <button
                     onClick={() => markRead.mutate(n.id)}
-                    className="text-xs text-primary-600 hover:underline whitespace-nowrap"
+                    className="text-xs text-brand-600 hover:underline whitespace-nowrap"
                   >
                     Mark read
                   </button>
