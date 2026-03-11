@@ -50,7 +50,7 @@ SHEET_SCHEMAS: dict[str, list[str]] = {
         "id", "title", "organization", "meeting_type", "meeting_mode",
         "date", "time", "venue", "hosted_by", "file_path",
         "created_by", "created_at", "pdf_link", "drive_file_id",
-        "status",  # for future: Scheduled / Completed / Cancelled / Rescheduled
+        "drive_folder_id", "status",
     ],
     "Attendees": [
         "id", "meeting_id", "user_name", "email", "designation",
@@ -91,7 +91,7 @@ SHEET_SCHEMAS: dict[str, list[str]] = {
         "id", "title", "organization", "meeting_type", "meeting_mode",
         "date", "time", "venue", "hosted_by", "file_path",
         "created_by", "created_at", "pdf_link", "drive_file_id",
-        "status",
+        "drive_folder_id", "status",
     ],
     "BR_Directors": [
         "id", "meeting_id", "user_name", "email", "designation",
@@ -111,7 +111,7 @@ SHEET_SCHEMAS: dict[str, list[str]] = {
         "id", "meeting_id", "next_date", "next_time",
     ],
     "BR_Files": [
-        "id", "meeting_id", "file_path", "file_type", "uploaded_at",
+        "id", "meeting_id", "file_path", "file_type", "uploaded_at", "drive_file_id",
     ],
 }
 
@@ -454,10 +454,10 @@ def init_sheets():
 
 # ── Google Drive Upload ───────────────────────────────────────────────
 
-def upload_to_drive(file_bytes: bytes, filename: str, mimetype: str = "application/pdf", subfolder_name: str = "Standard MOMs") -> dict:
-    """Upload a file to a specific subfolder inside the configured Google Drive main folder.
+def upload_to_drive(file_bytes: bytes, filename: str, mimetype: str = "application/pdf", subfolder_name: str = "Standard MOMs", parent_id: str = DRIVE_FOLDER_ID) -> dict:
+    """Upload a file to a specific subfolder inside the configured Google Drive folder.
     
-    If the subfolder doesn't exist, it creates it automatically.
+    If the subfolder doesn't exist, it creates it automatically inside the parent_id.
     Returns dict with 'id' and 'webViewLink'.
     """
     from googleapiclient.discovery import build
@@ -466,8 +466,8 @@ def upload_to_drive(file_bytes: bytes, filename: str, mimetype: str = "applicati
     creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
     drive_service = build("drive", "v3", credentials=creds)
 
-    # 1. Check if the subfolder exists inside the main DRIVE_FOLDER_ID
-    query = f"'{DRIVE_FOLDER_ID}' in parents and name = '{subfolder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+    # 1. Check if the subfolder exists inside the parent_id
+    query = f"'{parent_id}' in parents and name = '{subfolder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
     results = drive_service.files().list(
         q=query, 
         spaces='drive', 
@@ -482,7 +482,7 @@ def upload_to_drive(file_bytes: bytes, filename: str, mimetype: str = "applicati
         folder_metadata = {
             'name': subfolder_name,
             'mimeType': 'application/vnd.google-apps.folder',
-            'parents': [DRIVE_FOLDER_ID]
+            'parents': [parent_id]
         }
         folder = drive_service.files().create(
             body=folder_metadata, 
@@ -519,15 +519,53 @@ def upload_to_drive(file_bytes: bytes, filename: str, mimetype: str = "applicati
     return {"id": file["id"], "webViewLink": file.get("webViewLink", "")}
 
 
+def ensure_subfolder(subfolder_name: str, parent_id: str = DRIVE_FOLDER_ID) -> str:
+    """Find or create a subfolder in Google Drive."""
+    from googleapiclient.discovery import build
+    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
+    drive_service = build("drive", "v3", credentials=creds)
+
+    query = f"'{parent_id}' in parents and name = '{subfolder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+    results = drive_service.files().list(
+        q=query, 
+        spaces='drive', 
+        fields='files(id, name)',
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True
+    ).execute()
+    folders = results.get('files', [])
+
+    if folders:
+        return folders[0].get('id')
+
+    folder_metadata = {
+        'name': subfolder_name,
+        'mimeType': 'application/vnd.google-apps.folder',
+        'parents': [parent_id]
+    }
+    folder = drive_service.files().create(
+        body=folder_metadata, 
+        fields='id',
+        supportsAllDrives=True
+    ).execute()
+    return folder.get('id')
+
+
 def delete_from_drive(file_id: str):
-    """Delete a file from Google Drive."""
+    """Delete a file or folder from Google Drive."""
     if not file_id:
         return
     try:
         from googleapiclient.discovery import build
         creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
         drive_service = build("drive", "v3", credentials=creds)
+        # Using delete (permanent) instead of trash for cleanup
         drive_service.files().delete(fileId=file_id, supportsAllDrives=True).execute()
-        logger.info("Deleted file from Drive: %s", file_id)
+        logger.info("Permanently deleted object from Drive: %s", file_id)
     except Exception as e:
-        logger.error("Failed to delete file from Drive (%s): %s", file_id, e)
+        logger.warning("Failed to delete object from Drive (%s): %s", file_id, e)
+
+
+def delete_drive_folder(folder_id: str):
+    """Alias for delete_from_drive for semantic clarity."""
+    delete_from_drive(folder_id)

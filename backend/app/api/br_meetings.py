@@ -9,9 +9,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import List
 
-from app.schemas.schemas import MeetingCreate, MeetingResponse, MeetingMOMUpdate, ExtractedMOM, RescheduleMeeting
+from app.schemas.schemas import MeetingCreate, MeetingResponse, MeetingListResponse, MeetingMOMUpdate, ExtractedMOM, RescheduleMeeting, TaskUpdate
 from app.services.br_meeting_service import BRService
-from app.services.google_sheets_service import upload_to_drive, SheetsDB
+from app.services.google_sheets_service import upload_to_drive, SheetsDB, ensure_subfolder
 from app.api.meetings import generate_meeting_pdf
 from app.services.file_service import FileService
 from app.workflows.mom_workflow import get_mom_workflow
@@ -20,9 +20,23 @@ from app.notifications.notification_service import NotificationService
 router = APIRouter()
 logger = logging.getLogger("br_api")
 
-@router.get("/", response_model=list[MeetingResponse])
+@router.get("/", response_model=list[MeetingListResponse])
 async def list_br_meetings(skip: int = 0, limit: int = 100):
-    return await BRService.list_brs(None, skip, limit)
+    meetings = await BRService.list_brs(None, skip, limit)
+    return [
+        MeetingListResponse(
+            id=m.id, 
+            title=m.title, 
+            organization=m.organization,
+            date=m.date, 
+            time=m.time, 
+            venue=m.venue,
+            created_at=m.created_at,
+            task_count=len(m.tasks) if hasattr(m, 'tasks') and m.tasks else 0,
+            status=m.status if hasattr(m, 'status') else "Scheduled"
+        )
+        for m in meetings
+    ]
 
 @router.post("/", response_model=MeetingResponse, status_code=status.HTTP_201_CREATED)
 async def create_br_meeting(data: MeetingCreate):
@@ -82,41 +96,54 @@ async def update_br_with_resolution(
         parsed_data = json.loads(data_str)
         data = MeetingMOMUpdate(**parsed_data)
 
-        # Process manually uploaded files first
-        saved_files = []
-        if files:
-            for file in files:
-                content = await file.read()
-                file_path = await FileService.save_upload(content, file.filename)
-                saved_files.append({
-                    "file_path": file_path,
-                    "file_type": Path(file.filename).suffix.lower().replace(".", "")
-                })
-
-        # Add MOM and Files to DB
+        # Add MOM and basic updates to DB
         br = await BRService.add_mom_to_br(None, br_id, data)
         if not br:
             raise HTTPException(status_code=404, detail="Board Resolution not found")
         
-        # Save file metadata to BR_Files sheet
-        if saved_files:
-            now = datetime.utcnow().isoformat()
-            SheetsDB.append_rows("BR_Files", [
-                {
-                    "meeting_id": br_id,
-                    "file_path": f["file_path"],
-                    "file_type": f["file_type"],
-                    "uploaded_at": now
-                } for f in saved_files
-            ])
+        # Create/Ensure meeting-specific folder on Drive with Descriptive name
+        # Format: [ID] - [Title] - [Date] [Time]
+        meeting_date = str(br.date) if br.date else "NoDate"
+        meeting_time = str(br.time).replace(":", "") if br.time else "NoTime"
+        folder_name = f"{br_id} - {br.title} - {meeting_date} {meeting_time}"
+        
+        # Root logic: Ensure 'BR Meetings' exists inside AI MOM Storage
+        br_root_id = ensure_subfolder("BR Meetings", parent_id="0AAgyfuup7OPSUk9PVA")
+        meeting_folder_id = ensure_subfolder(folder_name, parent_id=br_root_id) 
 
-        # Generate and Upload PDF
+        # Process manually uploaded files and send to DRIVE
+        if files:
+            now = datetime.utcnow().isoformat()
+            for file in files:
+                content = await file.read()
+                ext = Path(file.filename).suffix.lower().replace(".", "")
+                
+                # Upload to Drive in the specific folder inside 'BR Meetings'
+                drive_file = upload_to_drive(
+                    content, 
+                    file.filename, 
+                    mimetype=file.content_type or "application/octet-stream", 
+                    subfolder_name=folder_name,
+                    parent_id=br_root_id
+                )
+
+                # Save metadata to BR_Files sheet with Drive Link
+                SheetsDB.append_row("BR_Files", {
+                    "meeting_id": br_id,
+                    "file_path": drive_file.get("webViewLink", ""),
+                    "file_type": ext,
+                    "uploaded_at": now,
+                    "drive_file_id": drive_file.get("id")
+                })
+
+        # Generate and Upload Final Resolution PDF to the SAME folder
         pdf_bytes, pdf_name = generate_meeting_pdf(br)
-        drive_result = upload_to_drive(pdf_bytes, pdf_name, subfolder_name="BR Meetings")
+        drive_result = upload_to_drive(pdf_bytes, pdf_name, subfolder_name=folder_name, parent_id=br_root_id)
         await BRService.update_br_pdf_link(
             br_id,
             pdf_link=drive_result.get("webViewLink", ""),
             drive_file_id=drive_result.get("id", ""),
+            drive_folder_id=meeting_folder_id
         )
         
         # Refresh BR object with new data
@@ -181,15 +208,21 @@ async def upload_br_resolution(file: UploadFile = File(...)):
             None, extracted_mom, file_path=file_path
         )
         
-        # Generate PROFESSIONALLY FORMATTED document
-        pdf_bytes, pdf_name = generate_meeting_pdf(br)
+        # Create/Ensure nested folder architecture
+        meeting_date = str(br.date) if br.date else "NoDate"
+        meeting_time = str(br.time).replace(":", "") if br.time else "NoTime"
+        folder_name = f"{br.id} - {br.title} - {meeting_date} {meeting_time}"
         
-        # Upload to "BR Meetings" folder
+        br_root_id = ensure_subfolder("BR Meetings", parent_id="0AAgyfuup7OPSUk9PVA")
+        meeting_folder_id = ensure_subfolder(folder_name, parent_id=br_root_id)
+        
+        # Upload to the specific meeting folder inside BR Meetings
         drive_result = upload_to_drive(
             file_bytes=pdf_bytes,
             filename=pdf_name,
             mimetype="application/pdf",
-            subfolder_name="BR Meetings"
+            subfolder_name=folder_name,
+            parent_id=br_root_id
         )
         
         # Update link
@@ -197,7 +230,8 @@ async def upload_br_resolution(file: UploadFile = File(...)):
             await BRService.update_br_pdf_link(
                 br.id,
                 pdf_link=drive_result.get("webViewLink"),
-                drive_file_id=drive_result.get("id")
+                drive_file_id=drive_result.get("id"),
+                drive_folder_id=meeting_folder_id
             )
             return await BRService.get_br(None, br.id)
             
@@ -249,3 +283,10 @@ async def reschedule_br_meeting(br_id: int, data: RescheduleMeeting):
             )
             
     return {"detail": "Board Resolution rescheduled"}
+
+@router.put("/tasks/{task_id}")
+async def update_br_task_status(task_id: int, data: TaskUpdate):
+    updated = await BRService.update_br_task(task_id, data.status)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"detail": "Task status updated"}

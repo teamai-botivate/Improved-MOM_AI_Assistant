@@ -1,6 +1,6 @@
-# ⚙️ Environment Setup & Deployment Guide
+# ⚙️ Environment Setup & Google Cloud Guide
 
-This document outlines the prerequisites, local development environment setup, and deployment processes for the Botivate Agentic MOM System.
+This document outlines the prerequisites, Google Cloud configuration, local development environment setup, and deployment processes for the **Botivate Agentic MOM System**.
 
 ---
 
@@ -8,118 +8,111 @@ This document outlines the prerequisites, local development environment setup, a
 
 Ensure your system possesses the following dependencies before proceeding:
 
-1. **Node.js** (v18.0.0 or higher) for React + Vite Frontend
-2. **Python** (v3.10.0 or higher) for FastAPI Backend
-3. **npm** (comes bundled with Node.js)
-4. **PostgreSQL Server** (running locally or accessible via a remote connection string)
-5. **Git** (for version control and repository management)
+1. **Node.js** (v18.0.0 or higher) - For React + Vite Frontend
+2. **Python** (v3.10.0 or higher) - For FastAPI Backend
+3. **Google Account** - To manage Google Sheets and Google Drive storage
+4. **Git** - For version control
+
+---
+
+## ☁️ Google Cloud Setup (CRITICAL)
+
+Botivate uses Google Sheets as a database and Google Drive for file archival. Follow these steps exactly to connect the system.
+
+### 1. Create a Google Cloud Project
+- Go to the [Google Cloud Console](https://console.cloud.google.com/).
+- Create a new project (e.g., `MOM-AI-Assistant`).
+
+### 2. Enable APIs
+Enable the following APIs in your project:
+- **Google Sheets API**
+- **Google Drive API**
+
+### 3. Create a Service Account
+- Navigate to **IAM & Admin > Service Accounts**.
+- Click **Create Service Account**.
+- Give it a name and click **Create and Continue**.
+- Skip optional roles and click **Done**.
+
+### 4. Create and Download JSON Key
+- Click on your new Service Account.
+- Go to the **Keys** tab.
+- Click **Add Key > Create New Key**.
+- Select **JSON** and download the file.
+- **Rename** this file to `google_credentials.json` and move it to the `backend/` directory of this project.
+
+### 5. Prepare Cloud Storage
+- Create a new **Google Sheet**. Copy its **Spreadsheet ID** from the URL:
+  `https://docs.google.com/spreadsheets/d/[SPREADSHEET_ID]/edit`
+- Create a new **Google Drive Folder** to store MOM PDFs. Copy its **Folder ID** from the URL:
+  `https://drive.google.com/drive/folders/[FOLDER_ID]`
+- **IMPORTANT:** Share both the Google Sheet and the Drive Folder with your **Service Account Email** (e.g., `account-name@project-id.iam.gserviceaccount.com`) as an **Editor**.
 
 ---
 
 ## 🔑 Environment Secrets Configuration
 
-Both the Frontend and Backend components rely on `.env` files. Ensure you construct these files in their respective roots before initiating any servers.
-
 ### Backend (`/backend/.env`)
-Create a file named `.env` inside the `/backend` directory:
+Create a `.env` file inside the `/backend` directory:
 
 ```ini
-# PostgreSQL Database Connection URL
-DATABASE_URL=postgresql://postgres:user123@localhost/mom_botivate
+# App Settings
+APP_NAME="Botivate MOM Agent"
+API_V1_PREFIX="/api/v1"
+CORS_ORIGINS=["http://localhost:5173"]
 
-# CORS Configuration (Allows frontend to interact with backend)
-CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000"]
+# Google Cloud Configuration
+SPREADSHEET_ID="your_google_sheet_id_here"
+DRIVE_FOLDER_ID="your_google_drive_folder_id_here"
+GOOGLE_CREDENTIALS_FILE="google_credentials.json"
 
-# FastAPI Application Settings
-DEBUG=True
-API_V1_STR=/api/v1
+# AI Configuration (Gemini/OpenAI)
+GOOGLE_API_KEY="your_gemini_api_key_here"
 
-# Secure SMTP Mail Configuration (For Automated PDF Dispatch)
-MAIL_USERNAME=your-botivate-agent@gmail.com
-MAIL_PASSWORD=your-secure-app-password
-MAIL_FROM=your-botivate-agent@gmail.com
+# SMTP Mail Configuration (For Automated Dispatch)
+MAIL_USERNAME="your-email@gmail.com"
+MAIL_PASSWORD="your-app-password"
+MAIL_FROM="your-email@gmail.com"
 MAIL_PORT=587
-MAIL_SERVER=smtp.gmail.com
+MAIL_SERVER="smtp.gmail.com"
 MAIL_STARTTLS=True
 MAIL_SSL_TLS=False
-USE_CREDENTIALS=True
-```
-
-### Frontend (`/frontend/.env` - Optional)
-*(Optional, if you wish to override standard configurations)*
-```ini
-# Base API Router
-VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ---
 
 ## 💻 Local Development Setup
 
-We highly recommend utilizing isolated environments (Virtual Environments) to prevent dependency conflicts during Python installation.
-
 ### 1. Backend Initialization (FastAPI)
-
-1. **Navigate to the Backend Directory:**
-   ```bash
-   cd backend
-   ```
-
-2. **Initialize a Virtual Environment:**
+1. Navigate to `backend/`.
+2. Create and activate virtual environment:
    ```bash
    python -m venv .venv
+   .\.venv\Scripts\Activate.ps1  # Windows
+   source .venv/bin/activate     # macOS/Linux
    ```
-
-3. **Activate the Virtual Environment:**
-   - **Windows:** `.venv\Scripts\activate`
-   - **macOS/Linux:** `source .venv/bin/activate`
-
-4. **Install Dependencies:**
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-
-5. **Initiate Development Server:**
+4. Start server:
    ```bash
    uvicorn app.main:app --reload
    ```
-   *The backend will boot up at `http://localhost:8000`. You can explore the interactive API schema at `http://localhost:8000/docs`.*
 
-### 2. Frontend Initialization (React + Vite)
-
-1. **Navigate to the Frontend Directory:**
-   ```bash
-   cd frontend
-   ```
-
-2. **Install Node Modules:**
+### 2. Frontend Initialization (React)
+1. Navigate to `frontend/`.
+2. Install modules and start:
    ```bash
    npm install
-   ```
-
-3. **Initiate Development Server:**
-   ```bash
    npm run dev
    ```
-   *The stunning Glassmorphic UI will now be active at `http://localhost:5173`.*
 
 ---
 
-## 🚀 Building for Production
-
-When scaling Botivate for enterprise operation, you must compile an optimized production artifact.
-
-### Compiling Frontend Artifacts
-```bash
-cd frontend
-npm run build
-```
-This routine triggers a rigorous TypeScript validation phase (`tsc`) followed by the Vite builder. The final optimized bundle (`html`, `js`, `css`, and brand assets) will output precisely into the `/dist` directory.
-
-### Production Environment Readiness
-- The Backend `FastAPI` instance should transition from `uvicorn` (with `--reload`) to an industrial-grade worker process array like `gunicorn`, paired with `UvicornWorker`.
-- Ensure `DEBUG=False` in the Backend `.env`.
-- Ensure your `CORS_ORIGINS` parameter mirrors your actual domain.
+## 🚀 Troubleshooting
+- **403 Forbidden:** Ensure you have shared the Google Sheet and Drive Folder with the Service Account email.
+- **Headers Mismatch:** If you modify `SHEET_SCHEMAS` in `google_sheets_service.py`, you must update the header row in your Google Sheet manually.
 
 ---
-*Botivate Services LLP © 2026. Code securely.*
+*Botivate Services LLP © 2026. Secure Governance on Autopilot.*

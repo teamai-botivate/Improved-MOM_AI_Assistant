@@ -376,10 +376,15 @@ class MeetingService:
         if not m:
             return False
             
-        # Delete file from Drive if it exists
-        drive_id = m.get("drive_file_id")
-        if drive_id:
-            delete_from_drive(drive_id)
+        # 1. Delete the Entire meeting subfolder from Drive (RECURSIVE DELETE)
+        folder_id = m.get("drive_folder_id")
+        if folder_id:
+            delete_from_drive(folder_id)
+        else:
+            # Fallback for old records: Delete individual file
+            drive_id = m.get("drive_file_id")
+            if drive_id:
+                delete_from_drive(drive_id)
 
         # Delete all related rows
         for sheet in ["Attendees", "Agenda", "Discussions", "Tasks", "NextMeeting", "Files"]:
@@ -416,9 +421,13 @@ class MeetingService:
         })
 
     @staticmethod
-    async def update_meeting_pdf_link(meeting_id: int, pdf_link: str, drive_file_id: str):
+    async def update_meeting_pdf_link(meeting_id: int, pdf_link: str, drive_file_id: str, drive_folder_id: str = None):
         """Update the PDF link and drive file ID for a meeting."""
-        SheetsDB.update_row("Meetings", meeting_id, {
+        update_data = {
             "pdf_link": pdf_link,
             "drive_file_id": drive_file_id,
-        })
+        }
+        if drive_folder_id:
+            update_data["drive_folder_id"] = drive_folder_id
+
+        SheetsDB.update_row("Meetings", meeting_id, update_data)

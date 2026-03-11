@@ -130,10 +130,23 @@ class BRService:
         if not m:
             return False
             
-        drive_id = m.get("drive_file_id")
-        if drive_id:
-            delete_from_drive(drive_id)
+        # 1. Delete the Entire meeting subfolder from Drive (RECURSIVE DELETE)
+        folder_id = m.get("drive_folder_id")
+        if folder_id:
+            delete_from_drive(folder_id)
+        else:
+            # Fallback for old records: Delete individual files
+            drive_id = m.get("drive_file_id")
+            if drive_id:
+                delete_from_drive(drive_id)
 
+            ref_files = SheetsDB.get_by_field("BR_Files", "meeting_id", meeting_id)
+            for rf in ref_files:
+                fid = rf.get("drive_file_id")
+                if fid:
+                    delete_from_drive(fid)
+
+        # 3. Cleanup database
         for sheet in ["BR_Directors", "BR_Agenda", "BR_Discussions", "BR_Tasks", "BR_NextMeeting", "BR_Files"]:
             SheetsDB.delete_by_field(sheet, "meeting_id", meeting_id)
             
@@ -141,11 +154,15 @@ class BRService:
         return True
 
     @staticmethod
-    async def update_br_pdf_link(meeting_id: int, pdf_link: str, drive_file_id: str):
-        SheetsDB.update_row("BR_Meetings", meeting_id, {
+    async def update_br_pdf_link(meeting_id: int, pdf_link: str, drive_file_id: str, drive_folder_id: str = None):
+        update_data = {
             "pdf_link": pdf_link,
             "drive_file_id": drive_file_id,
-        })
+        }
+        if drive_folder_id:
+            update_data["drive_folder_id"] = drive_folder_id
+            
+        SheetsDB.update_row("BR_Meetings", meeting_id, update_data)
     
     @staticmethod
     async def add_mom_to_br(db, meeting_id: int, data: MeetingMOMUpdate):
@@ -303,3 +320,8 @@ class BRService:
             "time": new_time,
             "status": "Rescheduled"
         })
+
+    @staticmethod
+    async def update_br_task(task_id: int, status: str):
+        """Update status of a BR task."""
+        return SheetsDB.update_row("BR_Tasks", task_id, {"status": status})

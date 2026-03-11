@@ -302,22 +302,28 @@ export default function BRLogMOMPage() {
                 </section>
 
                 {/* ── Submit ── */}
-                <div className="fixed bottom-6 left-0 right-0 max-w-4xl mx-auto px-6 z-50">
+                <div className="flex justify-center pt-8 pb-16">
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-14 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-lg shadow-xl shadow-brand-500/30 transform transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+                        className="relative group overflow-hidden px-10 py-3.5 rounded-2xl bg-brand-600 text-white font-bold shadow-xl shadow-brand-500/20 transition-all hover:shadow-brand-500/40 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
                     >
-                        {loading ? (
-                            <>
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Archiving Resolution...
-                            </>
-                        ) : (
-                            <>
-                                <ShieldCheckIcon className="w-6 h-6" /> Pass Resolution & Email Directors
-                            </>
-                        )}
+                        {/* Interactive Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-brand-600 via-indigo-600 to-brand-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        
+                        <div className="relative flex items-center gap-3">
+                            {loading ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span className="tracking-wide text-[14px]">Archiving Resolution...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <ShieldCheckIcon className="w-5 h-5" />
+                                    <span className="tracking-wide text-[14px]">Pass Resolution & Notify Directors</span>
+                                </>
+                            )}
+                        </div>
                     </button>
                 </div>
 

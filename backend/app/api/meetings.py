@@ -15,7 +15,7 @@ import logging
 
 from app.schemas.schemas import MeetingCreate, MeetingResponse, MeetingListResponse, MeetingMOMUpdate, RescheduleMeeting
 from app.services.meeting_service import MeetingService
-from app.services.google_sheets_service import upload_to_drive
+from app.services.google_sheets_service import upload_to_drive, ensure_subfolder
 from app.notifications.notification_service import NotificationService
 
 router = APIRouter()
@@ -202,12 +202,20 @@ async def download_meeting_pdf(meeting_id: int):
 
     # Upload PDF to Google Drive and update the sheet
     try:
-        subfolder = "Meetings"
-        drive_result = upload_to_drive(pdf_bytes, pdf_filename, subfolder_name=subfolder)
+        folder_name = f"{meeting.id} - {meeting.title} - {meeting.date} {meeting.time}"
+        root_id = ensure_subfolder("Meetings", parent_id="0AAgyfuup7OPSUk9PVA")
+        meeting_folder_id = ensure_subfolder(folder_name, parent_id=root_id)
+        
+        drive_result = upload_to_drive(
+            pdf_bytes, pdf_filename, 
+            subfolder_name=folder_name, 
+            parent_id=root_id
+        )
         await MeetingService.update_meeting_pdf_link(
             meeting_id,
             pdf_link=drive_result.get("webViewLink", ""),
             drive_file_id=drive_result.get("id", ""),
+            drive_folder_id=meeting_folder_id
         )
     except Exception as e:
         logging.getLogger("meetings_api").error("Drive upload failed: %s", e)
@@ -260,12 +268,20 @@ async def add_mom_to_meeting(meeting_id: int, data: MeetingMOMUpdate):
 
     # Upload to Drive
     try:
-        subfolder = "Meetings"
-        drive_result = upload_to_drive(pdf_data, pdf_name, subfolder_name=subfolder)
+        folder_name = f"{meeting.id} - {meeting.title} - {meeting.date} {meeting.time}"
+        root_id = ensure_subfolder("Meetings", parent_id="0AAgyfuup7OPSUk9PVA")
+        meeting_folder_id = ensure_subfolder(folder_name, parent_id=root_id)
+        
+        drive_result = upload_to_drive(
+            pdf_data, pdf_name, 
+            subfolder_name=folder_name, 
+            parent_id=root_id
+        )
         await MeetingService.update_meeting_pdf_link(
             meeting_id,
             pdf_link=drive_result.get("webViewLink", ""),
             drive_file_id=drive_result.get("id", ""),
+            drive_folder_id=meeting_folder_id
         )
     except Exception as e:
         logging.getLogger("meetings_api").error("Drive upload failed: %s", e)

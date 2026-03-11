@@ -116,6 +116,16 @@ export default function BRDetailPage() {
 
     const canAction = meeting.status === 'Scheduled' || meeting.status === 'Rescheduled';
 
+    const handleUpdateTaskStatus = async (taskId: number, newStatus: string) => {
+        try {
+            await api.put(`/br/tasks/${taskId}`, { status: newStatus });
+            toast.success('Resolution task updated');
+            queryClient.invalidateQueries({ queryKey: ['br-meeting', id] });
+        } catch {
+            toast.error('Failed to update task status');
+        }
+    };
+
     return (
         <div className="space-y-5 max-w-4xl mx-auto">
 
@@ -263,38 +273,62 @@ export default function BRDetailPage() {
                                         {t.deadline && <span className="flex items-center gap-1"><CalendarDaysIcon className="w-3 h-3" />Due: {t.deadline}</span>}
                                     </div>
                                 </div>
-                                <div className={`text-[11px] font-bold px-3 py-1.5 rounded-lg border ${statusColors[t.status] ?? statusColors['Pending']}`}>
-                                    {t.status}
-                                </div>
+                                <select
+                                    value={t.status}
+                                    onChange={(e) => handleUpdateTaskStatus(t.id, e.target.value)}
+                                    className={`text-[12px] font-bold px-3 py-1.5 rounded-lg border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400 shrink-0 ${statusColors[t.status] ?? statusColors['Pending']}`}
+                                >
+                                    <option value="Pending">Pending</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                </select>
                             </div>
                         ))}
                     </div>
                 )}
             </Section>
 
-            {/* ── Reference Documents ── */}
+            {/* ── Governance Evidence (Reference Documents) ── */}
             {meeting.supporting_documents && meeting.supporting_documents.length > 0 && (
-                <Section title="Reference Documents" icon={<DocumentIcon className="w-[18px] h-[18px]" />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {meeting.supporting_documents.map((doc, idx) => (
-                            <a
-                                key={idx}
-                                href={`${window.location.protocol}//${window.location.host}/${doc.file_path}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800 hover:border-brand-200 dark:hover:border-brand-500/20 transition-all group"
-                            >
-                                <div className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                                    <DocumentIcon className="w-5 h-5 text-brand-500" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[13px] font-semibold text-slate-800 dark:text-white truncate group-hover:text-brand-600 transition-colors">
-                                        {doc.file_path.split('/').pop()?.split('\\').pop()}
-                                    </p>
-                                    <p className="text-[11px] text-slate-400 uppercase font-bold tracking-wider">{doc.file_type || 'Document'}</p>
-                                </div>
-                            </a>
-                        ))}
+                <Section title="Governance Evidence" icon={<DocumentIcon className="w-[18px] h-[18px]" />}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {meeting.supporting_documents.map((doc, idx) => {
+                            const isAbsolute = String(doc.file_path).startsWith('http');
+                            const fileUrl = isAbsolute ? doc.file_path : `/${doc.file_path}`;
+                            const fileName = isAbsolute ? `Board Paper ${idx + 1}` : (doc.file_path.split('/').pop()?.split('\\').pop() || 'Document');
+                            
+                            return (
+                                <a 
+                                    key={idx} 
+                                    href={fileUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-slate-800 hover:border-brand-500/50 hover:shadow-lg hover:shadow-brand-500/10 transition-all group relative overflow-hidden"
+                                >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-brand-500/5 rounded-full -mr-8 -mt-8 blur-2xl group-hover:bg-brand-500/10 transition-colors" />
+                                    
+                                    <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700 shrink-0 group-hover:rotate-3 transition-transform">
+                                        <DocumentIcon className="w-6 h-6 text-brand-500" />
+                                    </div>
+                                    
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                                            {fileName}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-[10px] font-black uppercase tracking-tighter text-slate-400 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded leading-none bg-white dark:bg-transparent">
+                                                {doc.file_type || 'DATA'}
+                                            </span>
+                                            <span className="text-[10px] text-slate-400 font-medium">Click to View</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 group-hover:text-brand-500 group-hover:bg-brand-50 dark:group-hover:bg-brand-500/10 transition-all">
+                                        <ArrowDownTrayIcon className="w-4 h-4" />
+                                    </div>
+                                </a>
+                            );
+                        })}
                     </div>
                 </Section>
             )}
