@@ -58,6 +58,7 @@ class BRService:
                     "user_name": att.user_name,
                     "email": att.email,
                     "designation": att.designation,
+                    "unique_id": att.unique_id,
                     "whatsapp_number": att.whatsapp_number,
                     "remarks": att.remarks,
                     "attendance_status": att.attendance_status,
@@ -116,12 +117,22 @@ class BRService:
         all_brs = SheetsDB.get_all("BR_Meetings")
         all_brs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         sliced = all_brs[skip:skip + limit]
-
+        
         results = []
         for m in sliced:
             mid = _to_int(str(m.get("id", "")))
             tasks = SheetsDB.get_by_field("BR_Tasks", "meeting_id", mid) if mid else []
-            results.append(_row_to_meeting_obj(m, tasks=[_row_to_task(t) for t in tasks]))
+            
+            # Calculate counts
+            pending = sum(1 for t in tasks if str(t.get("status", "")).strip() == "Pending")
+            in_progress = sum(1 for t in tasks if str(t.get("status", "")).strip() == "In Progress" or str(t.get("status", "")).strip() == "In_progress")
+            completed = sum(1 for t in tasks if str(t.get("status", "")).strip() == "Completed")
+
+            obj = _row_to_meeting_obj(m, tasks=[_row_to_task(t) for t in tasks])
+            obj.pending_tasks = pending
+            obj.in_progress_tasks = in_progress
+            obj.completed_tasks = completed
+            results.append(obj)
         return results
 
     @staticmethod
@@ -188,6 +199,7 @@ class BRService:
         for update_a in data.attendees:
             SheetsDB.update_row("BR_Directors", update_a.id, {
                 "attendance_status": update_a.attendance_status,
+                "unique_id": update_a.unique_id,
                 "remarks": update_a.remarks
             })
 
@@ -340,6 +352,27 @@ class BRService:
     @staticmethod
     async def count_brs(db) -> int:
         return SheetsDB.count("BR_Meetings")
+
+    @staticmethod
+    async def mark_sent_to_cs(br_id: int):
+        SheetsDB.update_row("BR_Meetings", br_id, {"sent_to_cs": True})
+
+    @staticmethod
+    async def get_all_tasks():
+        """Retrieve all actions items across all Board Resolutions."""
+        meetings = SheetsDB.get_all("BR_Meetings")
+        tasks = SheetsDB.get_all("BR_Tasks")
+        
+        # Link meeting titles
+        meeting_map = {str(m['id']): m['title'] for m in meetings}
+        
+        results = []
+        for t in tasks:
+            obj = _row_to_task(t)
+            obj.meeting_title = meeting_map.get(str(t.get('meeting_id', '')), 'Unknown Resolution')
+            obj.source = "BR"
+            results.append(obj)
+        return results
 
     @staticmethod
     async def upcoming_brs(db, limit: int = 5):

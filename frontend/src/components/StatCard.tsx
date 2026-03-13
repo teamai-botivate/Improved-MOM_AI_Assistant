@@ -1,11 +1,14 @@
 /* Reusable premium stat card */
 
+import { Link } from 'react-router-dom';
+
 interface Props {
   title: string;
   value: number | string;
   icon: React.ReactNode;
   color: string;   // e.g. "indigo" | "blue" | "green" | "red" | "yellow" | "purple"
   trend?: string;  // optional +12% label
+  link?: string;
 }
 
 const palette: Record<string, { bg: string; icon: string; text: string; ring: string }> = {
@@ -17,10 +20,10 @@ const palette: Record<string, { bg: string; icon: string; text: string; ring: st
   purple: { bg: 'bg-purple-50 dark:bg-purple-500/10', icon: 'bg-purple-600 text-white shadow-purple-200 dark:shadow-purple-900/50', text: 'text-purple-700 dark:text-purple-400', ring: 'ring-purple-100 dark:ring-purple-500/20' },
 };
 
-export default function StatCard({ title, value, icon, color, trend }: Props) {
+export default function StatCard({ title, value, icon, color, trend, link }: Props) {
   const p = palette[color] ?? palette['indigo'];
-  return (
-    <div className={`relative rounded-2xl p-5 ${p.bg} ring-1 ${p.ring} transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group`}>
+  const content = (
+    <div className={`relative rounded-2xl p-5 ${p.bg} ring-1 ${p.ring} transition-all duration-200 ${link ? 'hover:shadow-lg hover:-translate-y-0.5 cursor-pointer' : ''} group`}>
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-[12px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">{title}</p>
@@ -35,4 +38,10 @@ export default function StatCard({ title, value, icon, color, trend }: Props) {
       </div>
     </div>
   );
+
+  if (link) {
+    return <Link to={link}>{content}</Link>;
+  }
+
+  return content;
 }

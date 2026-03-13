@@ -24,36 +24,63 @@ class DashboardService:
 
     @staticmethod
     async def get_dashboard(db) -> AnalyticsResponse:
-        total_meetings = await MeetingService.count_meetings(db)
-        status_counts = await TaskService.count_by_status(db)
+        total_meetings_reg = await MeetingService.count_meetings(db)
+        total_meetings_br = SheetsDB.count("BR_Meetings")
+        
+        status_counts_reg = await TaskService.count_by_status(db)
+        # Manually count BR tasks
+        br_tasks = SheetsDB.get_all("BR_Tasks")
+        status_counts_br = {"Pending": 0, "In Progress": 0, "Completed": 0}
+        for t in br_tasks:
+            s = t.get("status", "Pending")
+            if s in status_counts_br:
+                status_counts_br[s] += 1
+            else:
+                status_counts_br[s] = 1
+        
+        # Merge counts
+        status_counts = {
+            s: status_counts_reg.get(s, 0) + status_counts_br.get(s, 0)
+            for s in ["Pending", "In Progress", "Completed"]
+        }
 
         total_tasks = sum(status_counts.values())
         pending = status_counts.get("Pending", 0)
         in_progress = status_counts.get("In Progress", 0)
         completed = status_counts.get("Completed", 0)
 
-        overdue_list = await TaskService.overdue_tasks(db)
-        upcoming = await MeetingService.upcoming_meetings(db)
+        overdue_list_reg = await TaskService.overdue_tasks(db)
+        # TODO: Add BR overdue if needed, but for now just reg
+        
+        upcoming_reg = await MeetingService.upcoming_meetings(db)
+        upcoming_br_list = [m for m in SheetsDB.get_all("BR_Meetings") if m.get("status") in ["Scheduled", "Rescheduled", "Processing"]]
+        
         total_users = await UserService.count_users(db)
 
-        # Recent meetings
-        recent = await MeetingService.list_meetings(db, limit=5)
-        recent_resp = [
-            MeetingListResponse(
-                id=m.id,
-                title=m.title,
-                organization=m.organization,
-                date=m.date,
-                time=m.time,
-                venue=m.venue,
-                created_at=m.created_at,
+        # Recent meetings (merge and take top 5)
+        recent_reg = await MeetingService.list_meetings(db, limit=5)
+        from app.services.br_meeting_service import BRService
+        recent_br = await BRService.list_brs(db, limit=5)
+        
+        combined_recent = []
+        for m in recent_reg:
+            combined_recent.append(MeetingListResponse(
+                id=m.id, title=m.title, organization=m.organization,
+                date=m.date, time=m.time, venue=m.venue, created_at=m.created_at,
                 task_count=len(m.tasks) if hasattr(m, 'tasks') and m.tasks else 0,
-                status=m.status,
-                pdf_link=m.pdf_link,
-                recording_link=m.recording_link,
-            )
-            for m in recent
-        ]
+                status=m.status, pdf_link=m.pdf_link, recording_link=m.recording_link,
+                source="Regular"
+            ))
+        for m in recent_br:
+            combined_recent.append(MeetingListResponse(
+                id=m.id, title=m.title, organization=m.organization,
+                date=m.date, time=m.time, venue=m.venue, created_at=m.created_at,
+                task_count=len(m.tasks) if hasattr(m, 'tasks') and m.tasks else 0,
+                status=m.status, pdf_link=m.pdf_link, recording_link=m.recording_link,
+                source="BR"
+            ))
+        combined_recent.sort(key=lambda x: x.created_at, reverse=True)
+        recent_resp = combined_recent[:5]
 
         # Task distribution
         distribution = [
@@ -61,7 +88,7 @@ class DashboardService:
         ]
 
         # Meeting trends (last 6 months)
-        all_meetings = SheetsDB.get_all("Meetings")
+        all_meetings = SheetsDB.get_all("Meetings") + SheetsDB.get_all("BR_Meetings")
         trends = []
         today = date.today()
         for i in range(5, -1, -1):
@@ -79,7 +106,7 @@ class DashboardService:
             trends.append(MeetingTrend(month=month_name, count=month_count))
 
         overdue_resp = []
-        for t in overdue_list:
+        for t in overdue_list_reg:
             overdue_resp.append(TaskResponse(
                 id=t.id, meeting_id=t.meeting_id, title=t.title,
                 description=t.description, responsible_person=t.responsible_person,
@@ -87,67 +114,67 @@ class DashboardService:
                 status=t.status, created_at=t.created_at,
             ))
 
-        # Nearest upcoming and last meeting
+        # Nearest upcoming and last meeting logic
         today_date = date.today()
         time_now = datetime.now().time()
-        nearest_upcoming = None
-        last_meeting = None
+        
+        def find_nearest_and_last(meetings):
+            nearest = None
+            last = None
+            for mtg in meetings:
+                d = _parse_date(mtg.get("date"))
+                t = _parse_time(mtg.get("time"))
+                if d:
+                    if d > today_date or (d == today_date and t and t >= time_now):
+                        if nearest is None:
+                            nearest = mtg
+                        else:
+                            nd = _parse_date(nearest.get("date"))
+                            nt = _parse_time(nearest.get("time"))
+                            if d < nd or (d == nd and t and nt and t < nt):
+                                nearest = mtg
+                    elif d < today_date or (d == today_date and t and t < time_now):
+                        if last is None:
+                            last = mtg
+                        else:
+                            ld = _parse_date(last.get("date"))
+                            lt = _parse_time(last.get("time"))
+                            if d > ld or (d == ld and t and lt and t > lt):
+                                last = mtg
+            return nearest, last
 
-        for mtg in all_meetings:
-            d = _parse_date(mtg.get("date"))
-            t = _parse_time(mtg.get("time"))
-            if d:
-                if d > today_date or (d == today_date and t and t >= time_now):
-                    # Candidates for upcoming
-                    if nearest_upcoming is None:
-                        nearest_upcoming = mtg
-                    else:
-                        nd = _parse_date(nearest_upcoming.get("date"))
-                        nt = _parse_time(nearest_upcoming.get("time"))
-                        if d < nd or (d == nd and t and nt and t < nt):
-                            nearest_upcoming = mtg
-                elif d < today_date or (d == today_date and t and t < time_now):
-                    if last_meeting is None:
-                        last_meeting = mtg
-                    else:
-                        ld = _parse_date(last_meeting.get("date"))
-                        lt = _parse_time(last_meeting.get("time"))
-                        if d > ld or (d == ld and t and lt and t > lt):
-                            last_meeting = mtg
+        nearest_reg, last_reg = find_nearest_and_last(SheetsDB.get_all("Meetings"))
+        nearest_br, last_br = find_nearest_and_last(SheetsDB.get_all("BR_Meetings"))
 
-        nearest_resp = None
-        if nearest_upcoming:
-            mid = _to_int(str(nearest_upcoming.get("id", "")))
-            if mid:
+        async def to_resp(mtg, is_br=False):
+            if not mtg: return None
+            mid = _to_int(str(mtg.get("id", "")))
+            if not mid: return None
+            if is_br:
+                m_obj = await BRService.get_br(db, mid)
+            else:
                 m_obj = await MeetingService.get_meeting(db, mid)
-                if m_obj:
-                    nearest_resp = _meeting_obj_to_response(m_obj)
-
-        last_resp = None
-        if last_meeting:
-            mid = _to_int(str(last_meeting.get("id", "")))
-            if mid:
-                m_obj = await MeetingService.get_meeting(db, mid)
-                if m_obj:
-                    last_resp = _meeting_obj_to_response(m_obj)
+            return _meeting_obj_to_response(m_obj) if m_obj else None
 
         return AnalyticsResponse(
             stats=DashboardStats(
-                total_meetings=total_meetings,
+                total_meetings=total_meetings_reg + total_meetings_br,
                 total_tasks=total_tasks,
                 pending_tasks=pending,
                 in_progress_tasks=in_progress,
                 completed_tasks=completed,
-                overdue_tasks=len(overdue_list),
-                upcoming_meetings=len(upcoming),
+                overdue_tasks=len(overdue_list_reg),
+                upcoming_meetings=len(upcoming_reg) + len(upcoming_br_list),
                 total_users=total_users,
             ),
             task_distribution=distribution,
             meeting_trends=trends,
             recent_meetings=recent_resp,
             overdue_tasks=overdue_resp,
-            nearest_upcoming_meeting=nearest_resp,
-            last_meeting=last_resp,
+            nearest_upcoming_meeting=await to_resp(nearest_reg),
+            last_meeting=await to_resp(last_reg),
+            nearest_upcoming_br=await to_resp(nearest_br, is_br=True),
+            last_br=await to_resp(last_br, is_br=True),
         )
 
 
@@ -161,7 +188,7 @@ def _meeting_obj_to_response(m) -> MeetingResponse:
     attendees_resp = [
         AttendeeResponse(
             id=a.id, meeting_id=a.meeting_id, user_name=a.user_name,
-            email=a.email, designation=a.designation,
+            email=a.email, designation=a.designation, unique_id=getattr(a, 'unique_id', None),
             whatsapp_number=a.whatsapp_number, remarks=a.remarks,
             attendance_status=a.attendance_status,
         ) for a in (m.attendees or [])

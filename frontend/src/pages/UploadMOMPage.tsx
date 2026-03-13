@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
-import { ArrowUpTrayIcon, DocumentIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { ArrowUpTrayIcon, DocumentIcon, SparklesIcon, PlusIcon } from '@heroicons/react/24/outline';
 import api from '../api';
 
 export default function UploadMOMPage() {
@@ -45,6 +45,12 @@ export default function UploadMOMPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      <button 
+        onClick={() => navigate('/')} 
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 transition-colors mb-2 w-fit"
+      >
+        <PlusIcon className="w-3 h-3 rotate-45" /> Back to Dashboard
+      </button>
       <h2 className="text-xl font-bold text-slate-900 dark:text-white">Upload MOM Document</h2>
 
       <div className="bg-white dark:bg-[#161b27] p-4 rounded-xl border border-slate-200 dark:border-slate-800">

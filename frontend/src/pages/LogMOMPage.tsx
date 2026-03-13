@@ -121,10 +121,18 @@ export default function LogMOMPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Record MOM: {meeting.title}</h2>
-      <p className="text-gray-500 mb-6 text-sm">
-        Date: {meeting.date} | Venue: {meeting.venue || 'TBD'}
-      </p>
+      <div className="flex flex-col gap-1 mb-6">
+        <button 
+          onClick={() => navigate(`/meetings/${id}`)} 
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 transition-colors mb-2 w-fit"
+        >
+          <PlusIcon className="w-3 h-3 rotate-45" /> Back to Details
+        </button>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Record MOM: {meeting.title}</h2>
+        <p className="text-gray-500 text-sm">
+          Date: {meeting.date} | Venue: {meeting.venue || 'TBD'}
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Attendees */}
@@ -269,9 +277,9 @@ export default function LogMOMPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition disabled:opacity-50"
+          className="w-full py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg shadow-green-200 dark:shadow-green-900/20 transition-all active:scale-[0.98] disabled:opacity-50"
         >
-          {loading ? 'Saving MOM...' : 'Save MOM & Send Summaries'}
+          {loading ? 'Finalizing...' : '🚀 Save & Finalize MOM'}
         </button>
       </form>
     </div>

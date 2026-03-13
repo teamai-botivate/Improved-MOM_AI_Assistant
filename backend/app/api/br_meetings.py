@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import List
 
-from app.schemas.schemas import MeetingCreate, MeetingResponse, MeetingListResponse, MeetingMOMUpdate, ExtractedMOM, RescheduleMeeting, TaskUpdate
+from app.schemas.schemas import MeetingCreate, MeetingResponse, MeetingListResponse, MeetingMOMUpdate, ExtractedMOM, RescheduleMeeting, TaskUpdate, SendCSRequest
 from app.services.br_meeting_service import BRService
 from app.services.google_sheets_service import upload_to_drive, SheetsDB, ensure_subfolder
 from app.api.meetings import generate_meeting_pdf
@@ -33,7 +33,11 @@ async def list_br_meetings(skip: int = 0, limit: int = 100):
             venue=m.venue,
             created_at=m.created_at,
             task_count=len(m.tasks) if hasattr(m, 'tasks') and m.tasks else 0,
-            status=m.status if hasattr(m, 'status') else "Scheduled"
+            pending_tasks=len([t for t in m.tasks if str(t.status).split('.')[-1] == 'PENDING' or str(t.status) == 'Pending']) if hasattr(m, 'tasks') and m.tasks else 0,
+            in_progress_tasks=len([t for t in m.tasks if str(t.status).split('.')[-1] == 'IN_PROGRESS' or str(t.status) == 'In Progress']) if hasattr(m, 'tasks') and m.tasks else 0,
+            completed_tasks=len([t for t in m.tasks if str(t.status).split('.')[-1] == 'COMPLETED' or str(t.status) == 'Completed']) if hasattr(m, 'tasks') and m.tasks else 0,
+            status=m.status if hasattr(m, 'status') else "Scheduled",
+            sent_to_cs=m.sent_to_cs if hasattr(m, 'sent_to_cs') else False
         )
         for m in meetings
     ]
@@ -213,10 +217,14 @@ async def upload_br_resolution(file: UploadFile = File(...)):
         meeting_date = str(br.date) if br.date else "NoDate"
         meeting_time = str(br.time).replace(":", "") if br.time else "NoTime"
         folder_name = f"{br.id} - {br.title} - {meeting_date} {meeting_time}"
-        
+
+        # Root logic: Ensure 'BR Meetings' exists inside AI MOM Storage
         br_root_id = ensure_subfolder("BR Meetings", parent_id="0AAgyfuup7OPSUk9PVA")
         meeting_folder_id = ensure_subfolder(folder_name, parent_id=br_root_id)
         
+        # MUST generate PDF first
+        pdf_bytes, pdf_name = generate_meeting_pdf(br)
+
         # Upload to the specific meeting folder inside BR Meetings
         drive_result = upload_to_drive(
             file_bytes=pdf_bytes,
@@ -291,3 +299,34 @@ async def update_br_task_status(task_id: int, data: TaskUpdate):
     if not updated:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"detail": "Task status updated"}
+
+@router.post("/{br_id}/send-to-cs")
+async def send_br_to_cs(br_id: int, data: SendCSRequest):
+    from app.config import get_settings
+    settings = get_settings()
+    
+    br = await BRService.get_br(None, br_id)
+    if not br:
+        raise HTTPException(status_code=404, detail="Board Resolution not found")
+    
+    target_email = data.email or settings.DEFAULT_CS_EMAIL
+    if not target_email:
+        raise HTTPException(status_code=400, detail="No CS email provided and no default configured")
+
+    # Generate current PDF
+    pdf_bytes, pdf_filename = generate_meeting_pdf(br)
+    
+    # Send via notification service
+    await NotificationService.notify_cs_mom(
+        None, 
+        email=target_email, 
+        meeting_title=br.title, 
+        pdf_data=pdf_bytes, 
+        pdf_name=pdf_filename,
+        is_br=True
+    )
+    
+    # Mark as sent in DB
+    await BRService.mark_sent_to_cs(br_id)
+    
+    return {"detail": f"Resolution sent to CS at {target_email}"}

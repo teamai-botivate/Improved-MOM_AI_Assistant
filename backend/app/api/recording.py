@@ -93,56 +93,59 @@ async def run_ai_pipeline(mid, mtype, path, title, mdate, mtime, folder_id, pare
         ai_results = await AIService.summarize_transcript(transcript_text)
         logger.info(f"[STAGE 2/6] Summarization complete.")
         
-        # 3. Prepare 4 separate PDF files for Drive
-        logger.info(f"[STAGE 3/6] Packaging Intelligence Assets (4 PDFs)...")
+        # 3. Prepare 3 separate PDF files for Drive (MOM report is handled manually by Admin)
+        logger.info(f"[STAGE 3/6] Packaging 3-Asset Intelligence Archive (PDFs)...")
         
+        # Prepare filenames with prefix and ID
+        doc_tag = f"BR #{mid}" if mtype == "BR" else f"MOM #{mid}"
+        file_tag = f"BR_{mid}" if mtype == "BR" else f"MOM_{mid}"
+
         # PDF 1: Full Verbatim Transcript (🎤 Monospace Line-Numbered Layout)
-        transcript_filename = f"Transcript_{title}_{mdate}.pdf"
-        transcript_pdf = generate_transcript_pdf(title, mdate, transcript_text)
+        transcript_filename = f"Transcript_{file_tag}_{title}_{mdate}.pdf"
+        transcript_pdf = generate_transcript_pdf(f"TRANSCRIPT for {doc_tag}", mdate, transcript_text)
 
         # PDF 2: AI Auditing Logs (🔍 Segmented Process Trail)
-        chunks_filename = f"AI_Auditing_Logs_{title}_{mdate}.pdf"
-        chunks_pdf = generate_audit_log_pdf(title, mdate, ai_results['chunk_summaries'])
+        chunks_filename = f"AI_Auditing_Logs_{file_tag}_{title}_{mdate}.pdf"
+        chunks_pdf = generate_audit_log_pdf(f"AUDITING LOG for {doc_tag}", mdate, ai_results['chunk_summaries'])
 
-        # PDF 3: Professional MOM Report (📋 Standard Botivate Branded)
-        mom_filename = f"MOM_Professional_Report_{title}_{mdate}.pdf"
-        mom_pdf = generate_any_pdf(f"Minutes of Meeting: {title}", f"Date: {mdate} | Time: {mtime}", ai_results['final_summary'])
-
-        # PDF 4: Executive Summary Briefing (📊 Green-Accented Narrative)
-        formatted_filename = f"Final_Formatted_Summary_{title}_{mdate}.pdf"
-        formatted_pdf = generate_summary_pdf(title, mdate, ai_results['formatted_summary'])
+        # PDF 3: Executive Summary Briefing (📊 Green-Accented Narrative)
+        formatted_filename = f"Executive_Briefing_{file_tag}_{title}_{mdate}.pdf"
+        formatted_pdf = generate_summary_pdf(f"EXECUTIVE BRIEFING for {doc_tag}", mdate, ai_results['formatted_summary'])
         
-        # 4. Upload all 4 PDFs to Drive
-        logger.info(f"[STAGE 4/6] Uploading 4 PDFs directly to meeting folder...")
+        # 4. Upload Assets directly to the meeting folder
+        logger.info(f"[STAGE 4/6] Uploading Assets directly to meeting folder ID: {folder_id}")
+        
         root_folder_id = ensure_subfolder(parent_root, parent_id="0AAgyfuup7OPSUk9PVA")
         
         if not folder_id:
             folder_name = f"{mid} - {title} - {mdate} {mtime}"
             folder_id = ensure_subfolder(folder_name, parent_id=root_folder_id)
 
-        # Uploads directly to folder_id (Removing Intelligence Reports subfolder)
-        res_t = upload_to_drive(transcript_pdf, transcript_filename, "application/pdf", folder_id)
-        res_a = upload_to_drive(chunks_pdf, chunks_filename, "application/pdf", folder_id)
-        res_f = upload_to_drive(formatted_pdf, formatted_filename, "application/pdf", folder_id)
+        # A. Upload the Audio Recording itself
+        audio_filename = f"Recording_{title}_{mdate}.webm"
+        with open(path, "rb") as f:
+            audio_bytes = f.read()
+        res_audio = upload_to_drive(audio_bytes, audio_filename, "audio/webm", subfolder_name=None, parent_id=folder_id)
+        recording_link = res_audio.get("webViewLink")
+
+        # B. Upload the 3 PDFs
+        res_t = upload_to_drive(transcript_pdf, transcript_filename, "application/pdf", subfolder_name=None, parent_id=folder_id)
+        res_a = upload_to_drive(chunks_pdf, chunks_filename, "application/pdf", subfolder_name=None, parent_id=folder_id)
+        res_f = upload_to_drive(formatted_pdf, formatted_filename, "application/pdf", subfolder_name=None, parent_id=folder_id)
         
         transcript_link = res_t.get("webViewLink")
         logs_link = res_a.get("webViewLink")
         formatted_link = res_f.get("webViewLink")
         
-        # Main professional report is the one linked to UI
-        drive_res = upload_to_drive(mom_pdf, mom_filename, "application/pdf", folder_id)
-        report_link = drive_res.get("webViewLink")
+        logger.info(f"[STAGE 4/6] Audio and 3 PDFs Uploaded directly to folder.")
         
-        logger.info(f"[STAGE 4/6] 4 PDFs Uploaded. Primary Report: {report_link}")
-        
-        # 5. Update Sheet with all 4 Asset Links (Keep as Processing, NOT Completed)
-        logger.info(f"[STAGE 5/6] Syncing all 4 intelligence links and marking as Processing...")
+        # 5. Update Sheet with Intelligence Asset Links (Mark as Processing)
+        logger.info(f"[STAGE 5/6] Syncing intelligence links and marking as Processing...")
         update_data = {
-            "recording_link": report_link,         # Professional MOM PDF
-            "ai_summary_link": formatted_link,     # Formatted Narrative Summary PDF
-            "drive_transcript_id": transcript_link,# Verbatim Transcript PDF
-            "drive_logs_link": logs_link,          # AI Audit Logs PDF
-            "drive_recording_id": drive_res.get("id"),
+            "recording_link": recording_link,
+            "drive_transcript_id": transcript_link,
+            "ai_summary_link": formatted_link,
+            "drive_logs_link": logs_link,
             "drive_folder_id": folder_id,
             "status": "Processing"                 # <--- STAY IN PROCESSING UNTIL ADMIN SAVES MOM
         }

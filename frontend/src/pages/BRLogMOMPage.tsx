@@ -31,6 +31,7 @@ export default function BRLogMOMPage() {
                 attendees: meeting.attendees.map(a => ({
                     id: a.id,
                     attendance_status: a.attendance_status || 'Present',
+                    unique_id: (a as any).unique_id || '',
                     remarks: a.remarks || '',
                 })),
                 discussion_summary: meeting.discussion?.summary_text || '',
@@ -62,7 +63,7 @@ export default function BRLogMOMPage() {
 
     const updateField = (field: string, value: any) => setForm((p) => ({ ...p, [field]: value }));
 
-    const updateAttendee = (i: number, field: 'attendance_status' | 'remarks', value: string) =>
+    const updateAttendee = (i: number, field: 'attendance_status' | 'remarks' | 'unique_id', value: string) =>
         setForm((p) => ({
             ...p,
             attendees: p.attendees.map((a, idx) => (idx === i ? { ...a, [field]: value } : a)),
@@ -229,12 +230,20 @@ export default function BRLogMOMPage() {
                                         <option value="Absent">Absent</option>
                                         <option value="Excused">Excused</option>
                                     </select>
-                                    <input 
-                                        placeholder="Confidential Remark" 
-                                        value={form.attendees[i]?.remarks || ''} 
-                                        onChange={(e) => updateAttendee(i, 'remarks', e.target.value)} 
-                                        className={`${inputClass} py-2`} 
-                                    />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <input 
+                                            placeholder="Unique ID" 
+                                            value={form.attendees[i]?.unique_id || ''} 
+                                            onChange={(e) => updateAttendee(i, 'unique_id', e.target.value)} 
+                                            className={`${inputClass} py-2`} 
+                                        />
+                                        <input 
+                                            placeholder="Confidential Remark" 
+                                            value={form.attendees[i]?.remarks || ''} 
+                                            onChange={(e) => updateAttendee(i, 'remarks', e.target.value)} 
+                                            className={`${inputClass} py-2`} 
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -315,24 +324,9 @@ export default function BRLogMOMPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="relative group overflow-hidden px-10 py-3.5 rounded-2xl bg-brand-600 text-white font-bold shadow-xl shadow-brand-500/20 transition-all hover:shadow-brand-500/40 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+                        className="w-full py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-xl shadow-green-200 dark:shadow-green-900/10 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                        {/* Interactive Gradient Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-brand-600 via-indigo-600 to-brand-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        
-                        <div className="relative flex items-center gap-3">
-                            {loading ? (
-                                <>
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    <span className="tracking-wide text-[14px]">Archiving Resolution...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <ShieldCheckIcon className="w-5 h-5" />
-                                    <span className="tracking-wide text-[14px]">Pass Resolution & Notify Directors</span>
-                                </>
-                            )}
-                        </div>
+                        {loading ? 'Finalizing Resolution...' : '🚀 Save & Finalize Resolution'}
                     </button>
                 </div>
 

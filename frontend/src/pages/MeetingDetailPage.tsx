@@ -17,6 +17,7 @@ import {
   DocumentIcon,
   PlusIcon,
   XMarkIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
 import RecordingOverlay from '../components/RecordingOverlay';
 import toast from 'react-hot-toast';
@@ -236,13 +237,6 @@ export default function MeetingDetailPage() {
           <ArrowLeftIcon className="w-4 h-4" /> Back to Meetings
         </Link>
         <div className="flex flex-wrap items-center gap-2">
-          {meeting.status === 'Scheduled' && (
-            <RecordingOverlay 
-              meetingId={meeting.id} 
-              meetingType="Regular" 
-              onComplete={fetchMeeting} 
-            />
-          )}
           {canAction && (
             <>
               <button
@@ -276,6 +270,7 @@ export default function MeetingDetailPage() {
             </Link>
           )}
 
+
           <button
             onClick={handleDownloadPDF}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-bold rounded-xl bg-brand-600 text-white hover:bg-brand-700 shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-[0.98]"
@@ -285,12 +280,26 @@ export default function MeetingDetailPage() {
         </div>
       </div>
 
+      {/* ── Recording Section ── */}
+      {meeting.status === 'Scheduled' && (
+        <RecordingOverlay 
+          meetingId={meeting.id} 
+          meetingType="Regular" 
+          onComplete={fetchMeeting} 
+        />
+      )}
+
       {/* ── Hero Header ── */}
       <div className="relative rounded-2xl overflow-hidden shadow-sm">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-600 to-purple-700" />
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
         <div className="relative z-10 p-6 text-white">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-brand-200 mb-1">Meeting Details</p>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-mono border border-white/10 uppercase tracking-widest text-brand-100">
+              Meeting #{meeting.id}
+            </span>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-200">Details</p>
+          </div>
           <h2 className="text-2xl font-extrabold mb-4">{meeting.title}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {metaItems.filter(i => i.value).map((item, idx) => (
@@ -328,7 +337,7 @@ export default function MeetingDetailPage() {
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="space-y-1 text-center sm:text-left">
                   <p className="text-sm font-bold text-slate-900 dark:text-white">Central Intelligence Repository</p>
-                  <p className="text-[11px] font-medium text-slate-500 uppercase tracking-tight">4-Asset Cloud Evidence Architecture</p>
+                  <p className="text-[11px] font-medium text-slate-500 uppercase tracking-tight">3-Asset Cloud Evidence Architecture</p>
                 </div>
                 {meeting.recording_link && (meeting.recording_link.endsWith('.webm') || meeting.recording_link.endsWith('.mp3')) && (
                     <audio controls className="h-9 w-full max-w-xs">
@@ -337,16 +346,6 @@ export default function MeetingDetailPage() {
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                {meeting.recording_link && !meeting.recording_link.endsWith('.webm') && (
-                  <a href={meeting.recording_link} target="_blank" rel="noreferrer" 
-                     className="flex items-center gap-3 p-3.5 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-brand-400 dark:hover:border-brand-500 transition-all group">
-                    <DocumentIcon className="w-5 h-5 text-brand-500" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-bold text-slate-800 dark:text-white">Official MOM Report</p>
-                      <p className="text-[10px] text-slate-500 group-hover:text-brand-500">Professional Record</p>
-                    </div>
-                  </a>
-                )}
                 {meeting.ai_summary_link && (
                   <a href={meeting.ai_summary_link} target="_blank" rel="noreferrer" 
                      className="flex items-center gap-3 p-3.5 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 dark:hover:border-emerald-500 transition-all group">
@@ -369,7 +368,7 @@ export default function MeetingDetailPage() {
                 )}
                 {meeting.drive_logs_link && (
                   <a href={meeting.drive_logs_link} target="_blank" rel="noreferrer" 
-                     className="flex items-center gap-3 p-3.5 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-orange-400 dark:hover:border-orange-500 transition-all group">
+                     className="flex items-center gap-3 p-3.5 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-orange-400 dark:hover:border-orange-500 transition-all group col-span-1 sm:col-span-2">
                     <ClipboardDocumentListIcon className="w-5 h-5 text-orange-500" />
                     <div className="flex-1 min-w-0">
                       <p className="text-[12px] font-bold text-slate-800 dark:text-white">AI Audit Trail</p>

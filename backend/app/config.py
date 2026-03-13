@@ -2,7 +2,8 @@
 
 from pathlib import Path
 from functools import lru_cache
-from pydantic_settings import BaseSettings
+from typing import Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -14,6 +15,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    DEFAULT_CS_EMAIL: str = "prabhatkumarsictc7070@gmail.com"
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./mom_assistant.db"
@@ -44,9 +46,11 @@ class Settings(BaseSettings):
     # Frontend
     FRONTEND_URL: str = "http://localhost:5173"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "allow"
+    }
 
 
 @lru_cache()

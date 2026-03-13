@@ -7,18 +7,35 @@ import {
   SunIcon,
   MoonIcon,
   ShieldCheckIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: HomeIcon },
   { path: '/meetings', label: 'Meetings', icon: CalendarDaysIcon },
   { path: '/br', label: 'Board Resolutions', icon: ShieldCheckIcon },
+  { path: '/tasks', label: 'Global Tasks', icon: ClipboardDocumentListIcon },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { dark, toggle } = useThemeStore();
-  const pageLabel = navItems.find((n) => n.path === location.pathname)?.label ?? 'Dashboard';
+  const getPageLabel = () => {
+    const matched = navItems.find((n) => n.path === location.pathname);
+    if (matched) return matched.label;
+    
+    if (location.pathname.startsWith('/meetings/')) return 'Meeting Details';
+    if (location.pathname.startsWith('/br/')) return 'Board Resolution Details';
+    if (location.pathname === '/attendance') return 'Attendance Tracking';
+    if (location.pathname === '/users') return 'User Management';
+    if (location.pathname === '/notifications') return 'Notifications';
+    if (location.pathname === '/upload') return 'Record Upload';
+    if (location.pathname === '/schedule-meeting') return 'Schedule Meeting';
+    if (location.pathname === '/create-mom') return 'Manual Record Entry';
+    
+    return 'Dashboard';
+  };
+  const pageLabel = getPageLabel();
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#0d1117]">

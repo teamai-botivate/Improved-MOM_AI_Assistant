@@ -12,9 +12,11 @@ from reportlab.lib.utils import ImageReader
 from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
 import os
 import logging
+from datetime import datetime
 
-from app.schemas.schemas import MeetingCreate, MeetingResponse, MeetingListResponse, MeetingMOMUpdate, RescheduleMeeting
+from app.schemas.schemas import MeetingCreate, MeetingResponse, MeetingListResponse, MeetingMOMUpdate, RescheduleMeeting, GlobalTaskResponse
 from app.services.meeting_service import MeetingService
+from app.services.br_meeting_service import BRService
 from app.services.google_sheets_service import upload_to_drive, ensure_subfolder
 from app.notifications.notification_service import NotificationService
 
@@ -103,18 +105,23 @@ def generate_meeting_pdf(meeting) -> tuple:
 
     elements = []
 
-    elements.append(Paragraph(f"<b>MINUTES OF MEETING</b>", h1_style))
+    # Determine Document Title and Prefix
+    is_br = getattr(meeting, 'meeting_type', '') == "Board Resolution"
+    doc_code = f"BR-{meeting.id:03d}" if is_br else f"MOM-{meeting.id:03d}"
+    
+    elements.append(Paragraph(f"<b>{doc_code}</b>", h1_style))
     elements.append(Paragraph(f"<b>Subject:</b> {meeting.title}", normal_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(f"<b>Dear Team,</b>", normal_style))
     elements.append(Paragraph(
-        f"Please find the details and minutes of the meeting <b>{meeting.title}</b> held on "
+        f"Please find the details and minutes of the <b>{doc_code}</b> entitled <b>{meeting.title}</b> held on "
         f"<b>{meeting.date}</b> at <b>{meeting.time}</b> below:", normal_style))
     elements.append(Spacer(1, 10))
 
     org_name = meeting.organization or "Botivate Services LLP"
     elements.append(Paragraph(f"• <b>Organization:</b> {org_name}", normal_style))
-    elements.append(Paragraph(f"• <b>Meeting Type:</b> {meeting.meeting_type or 'N/A'}", normal_style))
+    pdf_meeting_type = meeting.meeting_type if meeting.meeting_type else ("Board Resolution" if is_br else "Regular Meeting")
+    elements.append(Paragraph(f"• <b>Meeting Type:</b> {pdf_meeting_type}", normal_style))
     elements.append(Paragraph(f"• <b>Meeting Mode:</b> {getattr(meeting, 'meeting_mode', 'N/A') or 'N/A'}", normal_style))
     elements.append(Paragraph(f"• <b>Venue/Location:</b> {meeting.venue or 'N/A'}", normal_style))
     elements.append(Paragraph(f"• <b>Hosted By:</b> {getattr(meeting, 'hosted_by', 'N/A') or 'N/A'}", normal_style))
@@ -184,7 +191,9 @@ def generate_meeting_pdf(meeting) -> tuple:
 
     safe_date = str(meeting.date).replace('-', '') if meeting.date else 'NoDate'
     safe_time = str(meeting.time).replace(':', '') if meeting.time else 'NoTime'
-    pdf_filename = f"MOM_{meeting.id}_{safe_date}_{safe_time}.pdf"
+    
+    prefix_code = "BR" if is_br else "MOM"
+    pdf_filename = f"{prefix_code}_{meeting.id}_{safe_date}_{safe_time}.pdf"
     
     return pdf_bytes, pdf_filename
 
@@ -326,7 +335,11 @@ async def list_meetings(skip: int = 0, limit: int = 50):
             date=m.date, time=m.time, venue=m.venue,
             created_at=m.created_at,
             task_count=len(m.tasks) if hasattr(m, 'tasks') and m.tasks else 0,
-            status=m.status if hasattr(m, 'status') else "Scheduled"
+            pending_tasks=len([t for t in m.tasks if str(t.status).split('.')[-1] == 'PENDING' or str(t.status) == 'Pending']) if hasattr(m, 'tasks') and m.tasks else 0,
+            in_progress_tasks=len([t for t in m.tasks if str(t.status).split('.')[-1] == 'IN_PROGRESS' or str(t.status) == 'In Progress']) if hasattr(m, 'tasks') and m.tasks else 0,
+            completed_tasks=len([t for t in m.tasks if str(t.status).split('.')[-1] == 'COMPLETED' or str(t.status) == 'Completed']) if hasattr(m, 'tasks') and m.tasks else 0,
+            status=m.status if hasattr(m, 'status') else "Scheduled",
+            sent_to_cs=m.sent_to_cs if hasattr(m, 'sent_to_cs') else False
         )
         for m in meetings
     ]
@@ -386,3 +399,14 @@ async def delete_meeting(meeting_id: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Meeting not found")
     return {"detail": "Meeting deleted"}
+
+@router.get("/global/tasks", response_model=list[GlobalTaskResponse])
+async def get_global_tasks():
+    """Retrieve every action item across both Regular and BR meetings."""
+    regular_tasks = await MeetingService.get_all_tasks()
+    br_tasks = await BRService.get_all_tasks()
+    
+    # Combine and Sort by created_at descending
+    combined = regular_tasks + br_tasks
+    combined.sort(key=lambda x: x.created_at if hasattr(x, 'created_at') and x.created_at else datetime.min, reverse=True)
+    return combined

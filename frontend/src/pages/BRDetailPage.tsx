@@ -18,6 +18,7 @@ import {
     MicrophoneIcon,
     PlusIcon,
     XMarkIcon,
+    PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
 import RecordingOverlay from '../components/RecordingOverlay';
 import toast from 'react-hot-toast';
@@ -142,6 +143,21 @@ export default function BRDetailPage() {
         }
     };
 
+    const handleSendToCS = async () => {
+        const csEmail = window.prompt('Enter CS Email (Leave blank to use default):', 'prabhatkumarsictc7070@gmail.com');
+        
+        // If user cancels the prompt
+        if (csEmail === null) return;
+
+        try {
+            await api.post(`/br/${id}/send-to-cs`, { email: csEmail || undefined });
+            toast.success(`Resolution sent to CS ${csEmail ? `at ${csEmail}` : '(default)'}`);
+            queryClient.invalidateQueries({ queryKey: ['br', id] });
+        } catch {
+            toast.error('Failed to send Resolution to CS');
+        }
+    };
+
     if (isLoading || !meeting) {
         return (
             <div className="flex flex-col items-center justify-center h-64 gap-3">
@@ -170,13 +186,6 @@ export default function BRDetailPage() {
                     <ArrowLeftIcon className="w-4 h-4" /> All Resolutions
                 </Link>
                 <div className="flex flex-wrap items-center gap-2">
-                    {meeting.status === 'Scheduled' && (
-                        <RecordingOverlay 
-                            meetingId={meeting.id} 
-                            meetingType="BR" 
-                            onComplete={refreshData} 
-                        />
-                    )}
                     <button
                         onClick={() => navigate(`/br/${id}/log-mom`)}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-500/20 border border-brand-100 dark:border-brand-500/20 transition-all active:scale-[0.98]"
@@ -207,6 +216,21 @@ export default function BRDetailPage() {
                         <TrashIcon className="w-4 h-4" /> Delete
                     </button>
 
+                    {meeting.status === 'Completed' && (
+                        <button
+                            onClick={handleSendToCS}
+                            disabled={meeting.sent_to_cs}
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold rounded-xl transition-all active:scale-[0.98] ${
+                                meeting.sent_to_cs 
+                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-not-allowed' 
+                                : 'bg-slate-900 text-white hover:bg-slate-800'
+                            }`}
+                        >
+                            <PaperAirplaneIcon className="w-4 h-4" />
+                            {meeting.sent_to_cs ? 'Resolution Sent' : 'Send to CS'}
+                        </button>
+                    )}
+
                     <button
                         onClick={handleDownloadPDF}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-bold rounded-xl bg-brand-600 text-white hover:bg-brand-700 shadow-md shadow-brand-200 dark:shadow-brand-900/40 transition-all active:scale-[0.98]"
@@ -216,12 +240,33 @@ export default function BRDetailPage() {
                 </div>
             </div>
 
+            {/* ── Recording Section ── */}
+            {meeting.status === 'Scheduled' && (
+                <RecordingOverlay 
+                    meetingId={meeting.id} 
+                    meetingType="BR" 
+                    onComplete={refreshData} 
+                />
+            )}
+
             {/* ── Hero Header ── */}
             <div className="relative rounded-2xl overflow-hidden shadow-sm">
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-600 to-brand-700" />
                 <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
                 <div className="relative z-10 p-6 text-white">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-brand-200 mb-1">Board Resolution Details</p>
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-mono border border-white/10 uppercase tracking-widest text-brand-100">
+                            BR-{String(meeting.id).padStart(3, '0')}
+                        </span>
+                        {meeting.status === 'Completed' && (
+                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-md border backdrop-blur-md ${meeting.sent_to_cs 
+                                ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' 
+                                : 'bg-amber-500/20 text-amber-200 border-amber-400/30'}`}>
+                                {meeting.sent_to_cs ? 'CS FILED' : 'CS PENDING'}
+                            </span>
+                        )}
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-brand-200">Details</p>
+                    </div>
                     <h2 className="text-2xl font-extrabold mb-4">{meeting.title}</h2>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {metaItems.filter(i => i.value).map((item, idx) => (
@@ -254,7 +299,7 @@ export default function BRDetailPage() {
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                                 <div className="space-y-1 text-center sm:text-left">
                                     <p className="text-sm font-bold text-slate-900 dark:text-white">Central Intelligence Repository</p>
-                                    <p className="text-[11px] font-medium text-slate-500 uppercase tracking-tight">Governance-Grade Cloud Evidence</p>
+                                    <p className="text-[11px] font-medium text-slate-500 uppercase tracking-tight">3-Asset Cloud Evidence Architecture</p>
                                 </div>
                                 {meeting.recording_link && (meeting.recording_link.endsWith('.webm') || meeting.recording_link.endsWith('.mp3')) && (
                                     <audio controls className="h-9 w-full max-w-xs shadow-sm">
@@ -263,12 +308,6 @@ export default function BRDetailPage() {
                                 )}
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                                {meeting.recording_link && !meeting.recording_link.endsWith('.webm') && (
-                                    <a href={meeting.recording_link} target="_blank" rel="noreferrer" className="flex items-center gap-3.5 p-4 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-brand-400 transition-all group shadow-sm">
-                                        <DocumentIcon className="w-5 h-5 text-brand-500" />
-                                        <div className="flex-1 min-w-0"><p className="text-[12px] font-bold text-slate-800 dark:text-white">Official Resolution Report</p><p className="text-[10px] text-slate-500 group-hover:text-brand-500">Professional Board Record</p></div>
-                                    </a>
-                                )}
                                 {meeting.ai_summary_link && (
                                     <a href={meeting.ai_summary_link} target="_blank" rel="noreferrer" className="flex items-center gap-3.5 p-4 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-400 transition-all group shadow-sm">
                                         <ClipboardDocumentListIcon className="w-5 h-5 text-emerald-500" />
@@ -282,7 +321,7 @@ export default function BRDetailPage() {
                                     </a>
                                 )}
                                 {meeting.drive_logs_link && (
-                                    <a href={meeting.drive_logs_link} target="_blank" rel="noreferrer" className="flex items-center gap-3.5 p-4 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-orange-400 transition-all group shadow-sm">
+                                    <a href={meeting.drive_logs_link} target="_blank" rel="noreferrer" className="flex items-center gap-3.5 p-4 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-orange-400 transition-all group shadow-sm col-span-1 sm:col-span-2">
                                         <ClipboardDocumentListIcon className="w-5 h-5 text-orange-500" />
                                         <div className="flex-1 min-w-0"><p className="text-[12px] font-bold text-slate-800 dark:text-white">AI Audit Trail</p><p className="text-[10px] text-slate-500 group-hover:text-orange-500">Segment-by-Segment Process Log</p></div>
                                     </a>
@@ -407,9 +446,40 @@ export default function BRDetailPage() {
 
             {/* ── Supporting Docs ── */}
             <Section title="Supporting Evidence" icon={<PaperClipIcon className="w-[18px] h-[18px]" />}>
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-center">
-                    <p className="text-sm text-slate-500">No supporting documents uploaded.</p>
-                </div>
+                {meeting.supporting_documents && meeting.supporting_documents.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {meeting.supporting_documents.map((f, i) => (
+                            <a
+                                key={i}
+                                href={f.file_path}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-brand-400 hover:shadow-md transition-all group shadow-sm"
+                            >
+                                <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center text-brand-600 dark:text-brand-400 shrink-0">
+                                    <DocumentIcon className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[13px] font-bold text-slate-800 dark:text-white truncate">
+                                        {f.file_path?.split('/').pop()?.split('?')[0] || `Supporting Document ${i + 1}`}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                                        {f.file_type || 'Document'} • EVIDENCE
+                                    </p>
+                                </div>
+                                <ArrowDownTrayIcon className="w-4 h-4 text-slate-400 group-hover:text-brand-500 transition-colors" />
+                            </a>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="p-8 rounded-2xl bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-800 text-center">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mx-auto mb-3">
+                            <DocumentIcon className="w-5 h-5" />
+                        </div>
+                        <p className="text-[13px] font-bold text-slate-500">No supporting documents uploaded.</p>
+                        <p className="text-[11px] text-slate-400 mt-1">Files attached during the resolution process will appear here.</p>
+                    </div>
+                )}
             </Section>
         </div>
     );

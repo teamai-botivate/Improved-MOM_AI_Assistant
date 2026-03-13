@@ -68,6 +68,7 @@ def _row_to_meeting_obj(m: dict, attendees=None, agenda_items=None, discussion=N
         "ai_summary_link": m.get("ai_summary_link") or None,
         "drive_logs_link": m.get("drive_logs_link") or None,
         "status": m.get("status") or "Scheduled",
+        "sent_to_cs": str(m.get("sent_to_cs", "")).lower() == "true",
         "attendees": attendees or [],
         "agenda_items": agenda_items or [],
         "discussion": discussion,
@@ -85,6 +86,7 @@ def _row_to_attendee(a: dict):
         "user_name": a.get("user_name", ""),
         "email": a.get("email") or None,
         "designation": a.get("designation") or None,
+        "unique_id": a.get("unique_id") or None,
         "whatsapp_number": a.get("whatsapp_number") or None,
         "remarks": a.get("remarks") or None,
         "attendance_status": a.get("attendance_status", "Present"),
@@ -406,7 +408,17 @@ class MeetingService:
         for m in sliced:
             mid = _to_int(str(m.get("id", "")))
             tasks = SheetsDB.get_by_field("Tasks", "meeting_id", mid) if mid else []
-            results.append(_row_to_meeting_obj(m, tasks=[_row_to_task(t) for t in tasks]))
+            
+            # Calculate counts
+            pending = sum(1 for t in tasks if str(t.get("status", "")).strip() == "Pending")
+            in_progress = sum(1 for t in tasks if str(t.get("status", "")).strip() == "In Progress" or str(t.get("status", "")).strip() == "In_progress")
+            completed = sum(1 for t in tasks if str(t.get("status", "")).strip() == "Completed")
+
+            obj = _row_to_meeting_obj(m, tasks=[_row_to_task(t) for t in tasks])
+            obj.pending_tasks = pending
+            obj.in_progress_tasks = in_progress
+            obj.completed_tasks = completed
+            results.append(obj)
         return results
 
     @staticmethod
@@ -448,6 +460,24 @@ class MeetingService:
     @staticmethod
     async def count_meetings(db) -> int:
         return SheetsDB.count("Meetings")
+
+
+    @staticmethod
+    async def get_all_tasks():
+        """Retrieve all actions items across all regular meetings."""
+        meetings = SheetsDB.get_all("Meetings")
+        tasks = SheetsDB.get_all("Tasks")
+        
+        # Link meeting titles
+        meeting_map = {str(m['id']): m['title'] for m in meetings}
+        
+        results = []
+        for t in tasks:
+            obj = _row_to_task(t)
+            obj.meeting_title = meeting_map.get(str(t.get('meeting_id', '')), 'Unknown Meeting')
+            obj.source = "Regular"
+            results.append(obj)
+        return results
 
     @staticmethod
     async def upcoming_meetings(db, limit: int = 5):

@@ -60,6 +60,7 @@ class AttendeeCreate(BaseModel):
     user_name: str
     email: Optional[str] = None
     designation: Optional[str] = None
+    unique_id: Optional[str] = None
     whatsapp_number: Optional[str] = None
     remarks: Optional[str] = None
     attendance_status: AttendanceStatus = AttendanceStatus.PRESENT
@@ -68,6 +69,7 @@ class AttendeeCreate(BaseModel):
 class AttendeeStatusUpdate(BaseModel):
     id: int
     attendance_status: AttendanceStatus
+    unique_id: Optional[str] = None
     remarks: Optional[str] = None
 
 
@@ -77,6 +79,7 @@ class AttendeeResponse(BaseModel):
     user_name: str
     email: Optional[str]
     designation: Optional[str]
+    unique_id: Optional[str] = None
     whatsapp_number: Optional[str]
     remarks: Optional[str]
     attendance_status: AttendanceStatus
@@ -225,6 +228,9 @@ class RescheduleMeeting(BaseModel):
     date: date
     time: time
 
+class SendCSRequest(BaseModel):
+    email: Optional[EmailStr] = None
+
 
 
 class MeetingResponse(BaseModel):
@@ -255,6 +261,7 @@ class MeetingResponse(BaseModel):
     next_meeting: Optional[NextMeetingResponse] = None
     supporting_documents: list[FileResponse] = []
     status: str = "Scheduled"
+    sent_to_cs: bool = False
 
     class Config:
         from_attributes = True
@@ -269,9 +276,14 @@ class MeetingListResponse(BaseModel):
     venue: Optional[str]
     created_at: datetime
     task_count: int = 0
+    pending_tasks: int = 0
+    in_progress_tasks: int = 0
+    completed_tasks: int = 0
     status: str = "Scheduled"
     pdf_link: Optional[str] = None
     recording_link: Optional[str] = None
+    sent_to_cs: bool = False
+    source: str = "Regular"
 
     class Config:
         from_attributes = True
@@ -325,6 +337,8 @@ class AnalyticsResponse(BaseModel):
     overdue_tasks: list[TaskResponse]
     nearest_upcoming_meeting: Optional[MeetingResponse] = None
     last_meeting: Optional[MeetingResponse] = None
+    nearest_upcoming_br: Optional[MeetingResponse] = None
+    last_br: Optional[MeetingResponse] = None
 
 
 # ── AI Extraction Schemas ──────────────────────────────────────────────
@@ -367,3 +381,19 @@ class ExtractedMOM(BaseModel):
     action_items: list[ExtractedTask] = []
     next_meeting_date: Optional[str] = None
     next_meeting_time: Optional[str] = None
+
+class GlobalTaskResponse(BaseModel):
+    id: int
+    meeting_id: int
+    meeting_title: str
+    source: str # "Regular" or "BR"
+    title: str
+    description: Optional[str]
+    responsible_person: Optional[str]
+    responsible_email: Optional[str] = None
+    deadline: Optional[date]
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

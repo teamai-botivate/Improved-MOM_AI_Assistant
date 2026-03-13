@@ -51,7 +51,7 @@ SHEET_SCHEMAS: dict[str, list[str]] = {
         "date", "time", "venue", "hosted_by", "file_path",
         "created_by", "created_at", "pdf_link", "drive_file_id",
         "drive_folder_id", "recording_link", "drive_recording_id",
-        "drive_transcript_id", "ai_summary_link", "drive_logs_link", "status",
+        "drive_transcript_id", "ai_summary_link", "drive_logs_link", "status", "sent_to_cs",
     ],
     "Attendees": [
         "id", "meeting_id", "user_name", "email", "designation",
@@ -93,7 +93,7 @@ SHEET_SCHEMAS: dict[str, list[str]] = {
         "date", "time", "venue", "hosted_by", "file_path",
         "created_by", "created_at", "pdf_link", "drive_file_id",
         "drive_folder_id", "recording_link", "drive_recording_id",
-        "drive_transcript_id", "ai_summary_link", "drive_logs_link", "status",
+        "drive_transcript_id", "ai_summary_link", "drive_logs_link", "status", "sent_to_cs",
     ],
     "BR_Directors": [
         "id", "meeting_id", "user_name", "email", "designation",
@@ -456,9 +456,10 @@ def init_sheets():
 
 # ── Google Drive Upload ───────────────────────────────────────────────
 
-def upload_to_drive(file_bytes: bytes, filename: str, mimetype: str = "application/pdf", subfolder_name: str = "Standard MOMs", parent_id: str = DRIVE_FOLDER_ID) -> dict:
+def upload_to_drive(file_bytes: bytes, filename: str, mimetype: str = "application/pdf", subfolder_name: str | None = "Standard MOMs", parent_id: str = DRIVE_FOLDER_ID) -> dict:
     """Upload a file to a specific subfolder inside the configured Google Drive folder.
     
+    If subfolder_name is None, it uploads directly to parent_id.
     If the subfolder doesn't exist, it creates it automatically inside the parent_id.
     Returns dict with 'id' and 'webViewLink'.
     """
@@ -468,33 +469,36 @@ def upload_to_drive(file_bytes: bytes, filename: str, mimetype: str = "applicati
     creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
     drive_service = build("drive", "v3", credentials=creds)
 
-    # 1. Check if the subfolder exists inside the parent_id
-    query = f"'{parent_id}' in parents and name = '{subfolder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-    results = drive_service.files().list(
-        q=query, 
-        spaces='drive', 
-        fields='files(id, name)',
-        supportsAllDrives=True,
-        includeItemsFromAllDrives=True
-    ).execute()
-    folders = results.get('files', [])
+    target_folder_id = parent_id
 
-    if not folders:
-        # Create the subfolder
-        folder_metadata = {
-            'name': subfolder_name,
-            'mimeType': 'application/vnd.google-apps.folder',
-            'parents': [parent_id]
-        }
-        folder = drive_service.files().create(
-            body=folder_metadata, 
-            fields='id',
-            supportsAllDrives=True
+    # 1. Check if we need to find/create a subfolder
+    if subfolder_name:
+        query = f"'{parent_id}' in parents and name = '{subfolder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        results = drive_service.files().list(
+            q=query, 
+            spaces='drive', 
+            fields='files(id, name)',
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
         ).execute()
-        target_folder_id = folder.get('id')
-        logger.info("Created new Drive subfolder: %s", subfolder_name)
-    else:
-        target_folder_id = folders[0].get('id')
+        folders = results.get('files', [])
+
+        if not folders:
+            # Create the subfolder
+            folder_metadata = {
+                'name': subfolder_name,
+                'mimeType': 'application/vnd.google-apps.folder',
+                'parents': [parent_id]
+            }
+            folder = drive_service.files().create(
+                body=folder_metadata, 
+                fields='id',
+                supportsAllDrives=True
+            ).execute()
+            target_folder_id = folder.get('id')
+            logger.info("Created new Drive subfolder: %s", subfolder_name)
+        else:
+            target_folder_id = folders[0].get('id')
 
     # 2. Upload the new file to the correct subfolder
     file_metadata = {

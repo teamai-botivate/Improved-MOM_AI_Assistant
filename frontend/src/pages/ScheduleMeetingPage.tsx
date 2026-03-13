@@ -95,6 +95,12 @@ export default function ScheduleMeetingPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      <button 
+        onClick={() => navigate('/')} 
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 transition-colors mb-4 w-fit"
+      >
+        <PlusIcon className="w-3 h-3 rotate-45" /> Back to Dashboard
+      </button>
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Schedule New Meeting</h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -177,7 +183,8 @@ export default function ScheduleMeetingPage() {
           </p>
           {form.attendees.map((a, i) => (
             <div key={i} className="flex flex-col gap-3 mb-4 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <input placeholder="Unique ID" value={a.unique_id || ''} onChange={(e) => updateAttendee(i, 'unique_id', e.target.value)} className={inputClass} />
                 <input placeholder="Name *" value={a.user_name} onChange={(e) => updateAttendee(i, 'user_name', e.target.value)} className={inputClass} />
                 <input placeholder="Email" value={a.email || ''} onChange={(e) => updateAttendee(i, 'email', e.target.value)} className={inputClass} />
                 <input placeholder="Designation" value={a.designation || ''} onChange={(e) => updateAttendee(i, 'designation', e.target.value)} className={inputClass} />

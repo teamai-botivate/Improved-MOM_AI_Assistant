@@ -21,6 +21,7 @@ export interface Attendee {
   user_name: string;
   email?: string;
   designation?: string;
+  unique_id?: string;
   whatsapp_number?: string;
   remarks?: string;
   attendance_status: AttendanceStatus;
@@ -92,6 +93,7 @@ export interface Meeting {
   ai_summary_link?: string;
   drive_transcript_id?: string;
   drive_logs_link?: string;
+  sent_to_cs: boolean;
 }
 
 export interface MeetingListItem {
@@ -103,9 +105,19 @@ export interface MeetingListItem {
   venue?: string;
   created_at: string;
   task_count: number;
+  pending_tasks: number;
+  in_progress_tasks: number;
+  completed_tasks: number;
   status: MeetingStatus;
   recording_link?: string;
   pdf_link?: string;
+  sent_to_cs: boolean;
+  source: 'Regular' | 'BR';
+}
+
+export interface GlobalTask extends Task {
+  meeting_title: string;
+  source: 'Regular' | 'BR';
 }
 
 export interface Notification {
@@ -147,6 +159,8 @@ export interface AnalyticsData {
   overdue_tasks: Task[];
   nearest_upcoming_meeting?: Meeting;
   last_meeting?: Meeting;
+  nearest_upcoming_br?: Meeting;
+  last_br?: Meeting;
 }
 
 export interface LoginPayload {
@@ -175,6 +189,7 @@ export interface MeetingFormData {
     user_name: string;
     email?: string;
     designation?: string;
+    unique_id?: string;
     whatsapp_number?: string;
     remarks?: string;
     attendance_status: AttendanceStatus;
@@ -195,6 +210,7 @@ export interface MeetingFormData {
 export interface AttendeeStatusUpdate {
   id: number;
   attendance_status: AttendanceStatus;
+  unique_id?: string;
   remarks?: string;
 }
 

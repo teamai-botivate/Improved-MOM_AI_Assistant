@@ -1,9 +1,11 @@
 """Email notification service using aiosmtplib."""
 
 import logging
+from typing import Optional
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from datetime import datetime
 
 import aiosmtplib
 
@@ -74,7 +76,7 @@ def get_base_template(title: str, content: str, is_br: bool = False) -> str:
 class EmailService:
 
     @staticmethod
-    async def send_email(to_email: str, subject: str, body_html: str, attachment_data: bytes = None, attachment_name: str = None) -> bool:
+    async def send_email(to_email: str, subject: str, body_html: str, attachment_data: Optional[bytes] = None, attachment_name: Optional[str] = None) -> bool:
         """Send an HTML email via SMTP, with optional attachment. Returns True on success."""
         if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
             logger.warning("SMTP credentials not configured – skipping email to %s", to_email)
@@ -187,7 +189,7 @@ class EmailService:
         await EmailService.send_email(to_email, subject, html)
 
     @staticmethod
-    async def send_meeting_invitation(to_email: str, recipient_name: str, meeting_title: str, date: str, time: str, venue: str, remarks: str = None, is_br: bool = False):
+    async def send_meeting_invitation(to_email: str, recipient_name: str, meeting_title: str, date: str, time: str, venue: str, remarks: Optional[str] = None, is_br: bool = False):
         subject = f"Official Board Resolution Invitation: {meeting_title}" if is_br else f"Meeting Invitation: {meeting_title}"
         intro = "You are hereby formally invited to review and deliberate upon an upcoming Board Resolution." if is_br else "You have been officially invited to the upcoming scheduled meeting."
         meeting_label = "RESOLUTION TITLE" if is_br else "MEETING TITLE"
@@ -281,7 +283,7 @@ class EmailService:
         await EmailService.send_email(to_email, subject, html)
 
     @staticmethod
-    async def send_meeting_summary(to_email: str, recipient_name: str, meeting_title: str, is_absent: bool, summary: str, task_html: str, pdf_data: bytes = None, pdf_name: str = None, remarks: str = None, is_br: bool = False):
+    async def send_meeting_summary(to_email: str, recipient_name: str, meeting_title: str, is_absent: bool, summary: str, task_html: str, pdf_data: Optional[bytes] = None, pdf_name: Optional[str] = None, is_br: bool = False):
         subject = f"Official Resolution Wording & MOM: {meeting_title}" if is_br else f"MOM & Summary: {meeting_title}"
         
         if is_absent:
@@ -311,23 +313,10 @@ class EmailService:
             </div>
             """
 
-        remarks_html = ""
-        if remarks:
-            remarks_style = "background-color: #fffbeb; border: 1px solid #fde68a; color: #92400e;" if is_br else "background-color: #f0f9ff; border: 1px solid #bae6fd; color: #0369a1;"
-            remarks_title = "Confidential Board Member Note" if is_br else "Personal Remarks for you"
-            remarks_html = f"""
-            <h3 style="color: #1e293b; font-size: 16px; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0;">{remarks_title}</h3>
-            <div style="{remarks_style} padding: 16px; border-radius: 6px; margin-bottom: 24px;">
-                <p style="margin: 0; font-size: 14px; line-height: 1.6; white-space: pre-wrap;"><strong>Admin/HR Note:</strong> {remarks}</p>
-            </div>
-            """
-
         discussion_label = "Resolution Summary / Wording" if is_br else "Discussion Summary"
         content = f"""
             <p style="font-size: 16px; color: #475569; margin: 0 0 16px;">Dear {recipient_name},</p>
             {greeting_box}
-            
-            {remarks_html}
             
             <h3 style="color: #1e293b; font-size: 16px; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0;">{discussion_label}</h3>
             <div style="background-color: #f8fafc; padding: 16px; border-radius: 6px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
@@ -339,4 +328,25 @@ class EmailService:
             {attachment_notice}
         """
         html = get_base_template(f"MOM Archive: {meeting_title}" if is_br else f"MOM: {meeting_title}", content, is_br=is_br)
+        await EmailService.send_email(to_email, subject, html, attachment_data=pdf_data, attachment_name=pdf_name)
+
+    @staticmethod
+    async def send_cs_mom(to_email: str, meeting_title: str, pdf_data: bytes, pdf_name: str, is_br: bool = False):
+        """Specially formatted email for Company Secretary."""
+        subject = f"GOVERNANCE COMPLIANCE: Finalized Resolution - {meeting_title}" if is_br else f"FOR RECORDS: Finalized MOM - {meeting_title}"
+        target_entity = "Board of Directors" if is_br else "HR/Management Committee"
+        
+        content = f"""
+            <p style="font-size: 16px; color: #475569; margin: 0 0 16px;">Dear Company Secretary,</p>
+            <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 24px;">
+                The administrative review for <strong>{meeting_title}</strong> is now complete. 
+                The attached document has been formally finalized and is now submitted for your corporate records and compliance filing.
+            </p>
+            <div style="background-color: #f1f5f9; border-left: 4px solid #1e293b; padding: 16px; border-radius: 4px; margin-bottom: 24px;">
+                <p style="font-size: 14px; color: #1e293b; margin: 0;"><strong>Source Entity:</strong> {target_entity}</p>
+                <p style="font-size: 14px; color: #1e293b; margin: 4px 0 0;"><strong>Submission Date:</strong> {datetime.now().strftime('%B %d, %Y')}</p>
+            </div>
+            <p style="font-size: 14px; color: #64748b; font-style: italic;">Note: This document is system-generated and has been verified by the meeting administrator.</p>
+        """
+        html = get_base_template("Governance Filing Submission", content, is_br=is_br)
         await EmailService.send_email(to_email, subject, html, attachment_data=pdf_data, attachment_name=pdf_name)

@@ -34,7 +34,7 @@ export default function DashboardPage() {
     );
   }
 
-  const { stats, task_distribution, meeting_trends, recent_meetings, overdue_tasks, nearest_upcoming_meeting, last_meeting } = data;
+  const { stats, task_distribution, meeting_trends, recent_meetings, overdue_tasks, nearest_upcoming_meeting, last_meeting, nearest_upcoming_br, last_br } = data;
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
@@ -131,10 +131,85 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ── BR Meeting Row ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          {/* Next BR */}
+          <div className="lg:col-span-3 relative rounded-2xl overflow-hidden shadow-xl shadow-indigo-100 dark:shadow-indigo-900/30">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-brand-600 to-indigo-800" />
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/5 rounded-full" />
+            <div className="relative z-10 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider bg-white/15 text-indigo-100 px-3 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                  Next Board Resolution
+                </span>
+              </div>
+              {data.nearest_upcoming_br ? (
+                <>
+                  <h3 className="text-2xl font-extrabold text-white leading-tight mb-3">{data.nearest_upcoming_br.title}</h3>
+                  <div className="flex flex-wrap gap-4 text-indigo-50 text-sm mb-5">
+                    <span className="flex items-center gap-1.5">
+                      <CalendarDaysIcon className="w-4 h-4 text-indigo-200" />
+                      {data.nearest_upcoming_br.date} &nbsp;·&nbsp; {data.nearest_upcoming_br.time}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <ClockIcon className="w-4 h-4 text-indigo-200" />
+                      {data.nearest_upcoming_br.venue || 'TBD'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2.5">
+                    <Link to={`/br/${data.nearest_upcoming_br.id}`} className="px-4 py-2 text-[13px] font-semibold text-white rounded-xl bg-white/15 hover:bg-white/25 transition-colors backdrop-blur-sm">View Details</Link>
+                    <Link to={`/br/${data.nearest_upcoming_br.id}/log-mom`} className="px-4 py-2 text-[13px] font-bold text-indigo-600 rounded-xl bg-white hover:bg-indigo-50 transition-colors shadow-md">Record MOM</Link>
+                  </div>
+                </>
+              ) : (
+                <p className="text-indigo-100 text-sm mt-2">No upcoming board resolutions scheduled.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Last BR */}
+          <div className="lg:col-span-2 bg-white dark:bg-[#161b27] rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm flex flex-col justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Last Board Resolution</p>
+              {data.last_br ? (
+                <>
+                  <Link to={`/br/${data.last_br.id}`} className="text-[17px] font-bold text-slate-900 dark:text-white hover:text-brand-500 transition-colors line-clamp-2 leading-snug">
+                    {data.last_br.title}
+                  </Link>
+                  <p className="text-xs text-slate-400 mt-1 mb-5">{data.last_br.date}</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 p-3 text-center">
+                      <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wide">Action items</p>
+                      <p className="text-2xl font-extrabold text-indigo-700 dark:text-indigo-300 mt-1">
+                        {data.last_br.tasks?.filter(t => t.status === 'Completed').length || 0}
+                        <span className="text-base font-semibold text-slate-400"> / {data.last_br.tasks?.length || 0}</span>
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 p-3 text-center">
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wide">Status</p>
+                      <p className="text-lg font-extrabold text-emerald-700 dark:text-emerald-300 mt-2 uppercase">
+                        {data.last_br.status}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-slate-400 text-sm">No past board resolutions found.</p>
+              )}
+            </div>
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Link to="/br" className="text-[12px] font-semibold text-brand-500 dark:text-brand-400 hover:underline">
+              View all resolutions →
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* ── Stats Grid ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
         <StatCard title="Total Meetings" value={stats.total_meetings} color="blue" icon={<CalendarDaysIcon className="w-5 h-5" />} />
-        <StatCard title="Total Tasks" value={stats.total_tasks} color="indigo" icon={<ClipboardDocumentListIcon className="w-5 h-5" />} />
+        <StatCard title="Total Tasks" value={stats.total_tasks} color="indigo" icon={<ClipboardDocumentListIcon className="w-5 h-5" />} link="/tasks" />
         <StatCard title="Pending" value={stats.pending_tasks} color="yellow" icon={<ClockIcon className="w-5 h-5" />} />
         <StatCard title="In Progress" value={stats.in_progress_tasks} color="purple" icon={<ClockIcon className="w-5 h-5" />} />
         <StatCard title="Completed" value={stats.completed_tasks} color="green" icon={<CheckCircleIcon className="w-5 h-5" />} />
@@ -191,7 +266,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-1.5">
               {recent_meetings.map((m) => (
-                <Link key={m.id} to={`/meetings/${m.id}`}
+                <Link key={`${m.source}-${m.id}`} to={m.source === 'BR' ? `/br/${m.id}` : `/meetings/${m.id}`}
                   className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
                   <div>
                     <p className="text-[13px] font-semibold text-slate-800 dark:text-white group-hover:text-brand-500 dark:group-hover:text-brand-400 transition-colors">{m.title}</p>

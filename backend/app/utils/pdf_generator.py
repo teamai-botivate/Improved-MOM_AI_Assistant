@@ -1,15 +1,6 @@
-"""
-PDF Generator – Distinct Templates per Document Type.
-
-Each intelligence asset has its own branded, purpose-built layout:
-  1. generate_any_pdf()          – Generic fallback (Botivate branded)
-  2. generate_transcript_pdf()   – Verbatim Transcript  (🎤 Speech Record)
-  3. generate_audit_log_pdf()    – AI Audit Trail       (🔍 Process Log)
-  4. generate_summary_pdf()      – Executive Briefing   (📊 Narrative Summary)
-  5. draw_header_footer()        – Shared Botivate header/footer (used by MOM)
-"""
 import io
 import os
+import re
 import logging
 import textwrap
 from datetime import datetime
@@ -24,6 +15,38 @@ logger = logging.getLogger("pdf_generator")
 
 LOGO_PATH = r"c:\Users\prabh\Desktop\MOM_AI_Assistant\B PNG.png"
 PAGE_W, PAGE_H = A4  # 595.27, 841.89
+
+# ──────────────────────────────────────────────────────────────────────
+# HELPERS: MARKDOWN PARSING & CLEANUP
+# ──────────────────────────────────────────────────────────────────────
+
+def clean_markdown(text: str) -> str:
+    """
+    Remove generic AI placeholders and format markdown for ReportLab.
+    Strips: [Your Name], [Insert Date], [Company Name], [Project Update], etc.
+    Converts: **text** to <b>text</b>
+    """
+    if not text:
+        return ""
+    
+    # 1. Strip Common AI Placeholders
+    placeholders = [
+        r"\[Your Name\]", r"\[Your Position\]", r"\[Your Contact Information\]",
+        r"\[Company Name\]", r"\[Insert Date\]", r"\[Date\]", r"\[Subject\]",
+        r"Final Summary Report", r"Subject: .*", r"Prepared by: .*", r"Prepared For: .*"
+    ]
+    for p in placeholders:
+        text = re.sub(p, "", text, flags=re.IGNORECASE)
+    
+    # 2. Cleanup double dashes/line breaks at the end
+    text = re.sub(r"\n---\s*$", "", text)
+    text = re.sub(r"For any further inquiries.*", "", text, flags=re.IGNORECASE)
+    
+    # 3. Basic Markdown to ReportLab HTML tags
+    # Convert **bold** to <b>bold</b> (non-greedy)
+    text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
+        
+    return text.strip()
 
 # ──────────────────────────────────────────────────────────────────────
 # SHARED HEADER/FOOTER – Used by Official MOM PDF
@@ -129,13 +152,13 @@ def generate_any_pdf(title: str, subtitle: str, content: str) -> bytes:
 # ──────────────────────────────────────────────────────────────────────
 
 def _transcript_header_footer(canvas, doc):
-    """Minimal transcript layout: dark sidebar + subtle branding."""
+    """Minimal transcript layout: Botivate Indigo sidebar + branding."""
     canvas.saveState()
     # Left sidebar accent bar
-    canvas.setFillColor(colors.HexColor("#0ea5e9"))
+    canvas.setFillColor(colors.HexColor("#4f46e5"))
     canvas.rect(0, 0, 8, PAGE_H, fill=1, stroke=0)
     # Top bar
-    canvas.setFillColor(colors.HexColor("#0c4a6e"))
+    canvas.setFillColor(colors.HexColor("#1e1b4b"))
     canvas.rect(8, PAGE_H - 50, PAGE_W - 8, 50, fill=1, stroke=0)
     # Title in top bar
     canvas.setFillColor(colors.white)
@@ -144,8 +167,17 @@ def _transcript_header_footer(canvas, doc):
     canvas.setFont("Helvetica", 9)
     canvas.drawRightString(PAGE_W - 30, PAGE_H - 25, "Botivate Meeting Intelligence")
     canvas.drawRightString(PAGE_W - 30, PAGE_H - 38, f"Generated: {datetime.now().strftime('%d %b %Y, %I:%M %p')}")
+    
+    # Logo in Header
+    if os.path.exists(LOGO_PATH):
+        try:
+            logo = ImageReader(LOGO_PATH)
+            canvas.drawImage(logo, PAGE_W - 60, PAGE_H - 45, width=28, height=28, preserveAspectRatio=True, mask='auto')
+        except:
+            pass
+
     # Footer
-    canvas.setFillColor(colors.HexColor("#0c4a6e"))
+    canvas.setFillColor(colors.HexColor("#1e1b4b"))
     canvas.rect(8, 0, PAGE_W - 8, 30, fill=1, stroke=0)
     canvas.setFillColor(colors.white)
     canvas.setFont("Helvetica", 8)
@@ -160,7 +192,7 @@ def generate_transcript_pdf(title: str, date: str, transcript_text: str) -> byte
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=24, rightMargin=30, topMargin=70, bottomMargin=50)
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle('TTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=16, textColor=colors.HexColor("#0c4a6e"), spaceAfter=4)
+    title_style = ParagraphStyle('TTitle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=16, textColor=colors.HexColor("#1e1b4b"), spaceAfter=4)
     meta_style = ParagraphStyle('TMeta', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor("#64748b"), spaceAfter=2)
     body_style = ParagraphStyle('TBody', parent=styles['Normal'], fontName='Courier', fontSize=9, textColor=colors.HexColor("#1e293b"), leading=14, spaceAfter=4, leftIndent=12)
     line_num_style = ParagraphStyle('TLineNum', parent=styles['Normal'], fontName='Helvetica', fontSize=7, textColor=colors.HexColor("#94a3b8"), leading=14, spaceAfter=4)
@@ -171,7 +203,7 @@ def generate_transcript_pdf(title: str, date: str, transcript_text: str) -> byte
     elements.append(Paragraph(f"Document Type: Verbatim Speech-to-Text Record", meta_style))
     elements.append(Paragraph(f"Extraction Engine: AssemblyAI / Faster-Whisper", meta_style))
     elements.append(Spacer(1, 8))
-    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceAfter=12))
+    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#4f46e5"), spaceAfter=12))
 
     # Split transcript into lines and number them
     lines = transcript_text.split('\n')
@@ -210,13 +242,13 @@ def generate_transcript_pdf(title: str, date: str, transcript_text: str) -> byte
 # ──────────────────────────────────────────────────────────────────────
 
 def _audit_header_footer(canvas, doc):
-    """Technical process trail layout: dark header, numbered pages."""
+    """Technical process trail layout: dark indigo header, numbered pages."""
     canvas.saveState()
     # Top bar
     canvas.setFillColor(colors.HexColor("#1e1b4b"))
     canvas.rect(0, PAGE_H - 55, PAGE_W, 55, fill=1, stroke=0)
     # Accent line
-    canvas.setFillColor(colors.HexColor("#f59e0b"))
+    canvas.setFillColor(colors.HexColor("#3b82f6"))
     canvas.rect(0, PAGE_H - 58, PAGE_W, 3, fill=1, stroke=0)
     # Title
     canvas.setFillColor(colors.white)
@@ -226,8 +258,17 @@ def _audit_header_footer(canvas, doc):
     canvas.drawString(30, PAGE_H - 44, "Chunk-by-Chunk Summarization Trail")
     canvas.drawRightString(PAGE_W - 30, PAGE_H - 30, "Botivate Intelligence Engine")
     canvas.drawRightString(PAGE_W - 30, PAGE_H - 44, f"{datetime.now().strftime('%d %b %Y, %I:%M %p')}")
+
+    # Logo in Header
+    if os.path.exists(LOGO_PATH):
+        try:
+            logo = ImageReader(LOGO_PATH)
+            canvas.drawImage(logo, PAGE_W - 60, PAGE_H - 45, width=28, height=28, preserveAspectRatio=True, mask='auto')
+        except:
+            pass
+
     # Footer
-    canvas.setFillColor(colors.HexColor("#f1f5f9"))
+    canvas.setFillColor(colors.HexColor("#f8fafc"))
     canvas.rect(0, 0, PAGE_W, 28, fill=1, stroke=0)
     canvas.setFillColor(colors.HexColor("#64748b"))
     canvas.setFont("Helvetica", 7)
@@ -245,7 +286,7 @@ def generate_audit_log_pdf(title: str, date: str, chunk_summaries: list) -> byte
     sec_title = ParagraphStyle('ASecTitle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=11, textColor=colors.HexColor("#1e1b4b"), spaceAfter=4, spaceBefore=16)
     meta_style = ParagraphStyle('AMeta', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor("#64748b"), spaceAfter=2)
     body_style = ParagraphStyle('ABody', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor("#334155"), leading=13, spaceAfter=4, leftIndent=8)
-    chunk_label = ParagraphStyle('AChunk', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor("#f59e0b"), spaceAfter=2, spaceBefore=14)
+    chunk_label = ParagraphStyle('AChunk', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor("#4f46e5"), spaceAfter=2, spaceBefore=14)
 
     elements = []
     elements.append(Paragraph(f"<b>Meeting: {title}</b>", sec_title))
@@ -260,7 +301,8 @@ def generate_audit_log_pdf(title: str, date: str, chunk_summaries: list) -> byte
         elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#fbbf24"), spaceAfter=6))
 
         # Chunk content
-        for line in chunk.split('\n'):
+        cleaned_chunk = clean_markdown(chunk)
+        for line in cleaned_chunk.split('\n'):
             stripped = line.strip()
             if stripped:
                 elements.append(Paragraph(stripped, body_style))
@@ -269,7 +311,7 @@ def generate_audit_log_pdf(title: str, date: str, chunk_summaries: list) -> byte
 
     # Summary
     elements.append(Spacer(1, 20))
-    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#1e1b4b"), spaceAfter=8))
+    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#4f46e5"), spaceAfter=8))
     elements.append(Paragraph(f"<i>Audit completed — {len(chunk_summaries)} segments processed.</i>", meta_style))
 
     doc.build(elements, onFirstPage=_audit_header_footer, onLaterPages=_audit_header_footer)
@@ -283,16 +325,16 @@ def generate_audit_log_pdf(title: str, date: str, chunk_summaries: list) -> byte
 # ──────────────────────────────────────────────────────────────────────
 
 def _summary_header_footer(canvas, doc):
-    """Executive briefing layout: clean, professional, green accent."""
+    """Executive briefing layout: clean, professional, Botivate Blue accent."""
     canvas.saveState()
     # Top accent bar
-    canvas.setFillColor(colors.HexColor("#059669"))
+    canvas.setFillColor(colors.HexColor("#4f46e5"))
     canvas.rect(0, PAGE_H - 6, PAGE_W, 6, fill=1, stroke=0)
     # Header area
-    canvas.setFillColor(colors.HexColor("#f0fdf4"))
+    canvas.setFillColor(colors.HexColor("#f8fafc"))
     canvas.rect(0, PAGE_H - 60, PAGE_W, 54, fill=1, stroke=0)
     # Title
-    canvas.setFillColor(colors.HexColor("#064e3b"))
+    canvas.setFillColor(colors.HexColor("#1e1b4b"))
     canvas.setFont("Helvetica-Bold", 13)
     canvas.drawString(30, PAGE_H - 30, "EXECUTIVE SUMMARY BRIEFING")
     canvas.setFont("Helvetica", 8)
@@ -304,12 +346,12 @@ def _summary_header_footer(canvas, doc):
             canvas.drawImage(logo, PAGE_W - 65, PAGE_H - 55, width=35, height=35, preserveAspectRatio=True, mask='auto')
         except:
             pass
-    canvas.setFillColor(colors.HexColor("#064e3b"))
+    canvas.setFillColor(colors.HexColor("#1e1b4b"))
     canvas.setFont("Helvetica", 8)
     canvas.drawRightString(PAGE_W - 75, PAGE_H - 30, "Botivate Services LLP")
     canvas.drawRightString(PAGE_W - 75, PAGE_H - 42, f"{datetime.now().strftime('%d %b %Y')}")
     # Footer
-    canvas.setFillColor(colors.HexColor("#059669"))
+    canvas.setFillColor(colors.HexColor("#4f46e5"))
     canvas.rect(0, 0, PAGE_W, 3, fill=1, stroke=0)
     canvas.setFillColor(colors.HexColor("#64748b"))
     canvas.setFont("Helvetica", 7)
@@ -324,8 +366,8 @@ def generate_summary_pdf(title: str, date: str, summary_text: str) -> bytes:
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=40, rightMargin=40, topMargin=75, bottomMargin=30)
     styles = getSampleStyleSheet()
 
-    h1 = ParagraphStyle('SH1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=15, textColor=colors.HexColor("#064e3b"), spaceAfter=6)
-    h2 = ParagraphStyle('SH2', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=11, textColor=colors.HexColor("#065f46"), spaceAfter=6, spaceBefore=14)
+    h1 = ParagraphStyle('SH1', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=15, textColor=colors.HexColor("#1e1b4b"), spaceAfter=6)
+    h2 = ParagraphStyle('SH2', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=11, textColor=colors.HexColor("#4338ca"), spaceAfter=6, spaceBefore=14)
     meta = ParagraphStyle('SMeta', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor("#64748b"), spaceAfter=2)
     body = ParagraphStyle('SBody', parent=styles['Normal'], fontName='Helvetica', fontSize=10, textColor=colors.HexColor("#1e293b"), leading=15, spaceAfter=8)
     bullet = ParagraphStyle('SBullet', parent=body, leftIndent=16, bulletIndent=4)
@@ -334,16 +376,25 @@ def generate_summary_pdf(title: str, date: str, summary_text: str) -> bytes:
     elements.append(Paragraph(f"<b>{title}</b>", h1))
     elements.append(Paragraph(f"Meeting Date: {date} | Synthesised by Botivate AI", meta))
     elements.append(Spacer(1, 4))
-    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#d1fae5"), spaceAfter=14))
+    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#c7d2fe"), spaceAfter=14))
+
+    # Clean the input text from generic placeholders and raw markdown
+    cleaned_text = clean_markdown(summary_text)
 
     # Parse content
-    for line in summary_text.split('\n'):
+    for line in cleaned_text.split('\n'):
         stripped = line.strip()
-        if not stripped:
+        if not stripped or stripped == "---":
             elements.append(Spacer(1, 8))
             continue
-        # Heading detection
+            
+        # Heading detection (markdown style)
         if stripped.startswith('##'):
+            elements.append(Paragraph(f"<b>{stripped.lstrip('#').strip()}</b>", h2))
+        elif stripped.startswith('#'):
+             # Skip top-level heading if it matches title
+            if stripped.lstrip('#').strip().lower() in [title.lower(), "final summary report"]:
+                continue
             elements.append(Paragraph(f"<b>{stripped.lstrip('#').strip()}</b>", h2))
         elif stripped.isupper() and len(stripped) < 60:
             elements.append(Paragraph(f"<b>{stripped}</b>", h2))
@@ -357,7 +408,7 @@ def generate_summary_pdf(title: str, date: str, summary_text: str) -> bytes:
 
     # Closing
     elements.append(Spacer(1, 20))
-    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#d1fae5"), spaceAfter=8))
+    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#c7d2fe"), spaceAfter=8))
     elements.append(Paragraph("<i>— End of Executive Summary —</i>", meta))
 
     doc.build(elements, onFirstPage=_summary_header_footer, onLaterPages=_summary_header_footer)

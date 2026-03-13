@@ -134,7 +134,14 @@ class AIService:
         logger.info("✨ [DEBUG] Generating well-formatted Final Summary report...")
         beautify_prompt = ChatPromptTemplate.from_template(
             "Create a well-formatted, easy-to-read final summary report in English based on these meeting summaries. "
-            "The discussion may have been in Hindi/Hinglish; focus on a flowing narrative and key highlights in professional English that provide a complete picture:\n\nSummaries:\n{summaries}"
+            "The discussion may have been in Hindi/Hinglish; focus on a flowing narrative and key highlights in professional English. "
+            "\n\nCRITICAL INSTRUCTIONS: "
+            "1. DO NOT use generic placeholders like [Your Name], [Your Position], [Company Name], or [Insert Date]. "
+            "2. DO NOT include a signature or contact section at the end. "
+            "3. DO NOT include a 'Final Summary Report' title line. "
+            "4. Start directly with the overview or highlights. "
+            "5. Use Markdown styles (## for headings, ** for bold, bullet points for lists) moderately for readability."
+            "\n\nSummaries:\n{summaries}"
         )
         beautify_chain = beautify_prompt | llm | StrOutputParser()
         formatted_summary = await beautify_chain.ainvoke({"summaries": combined_summaries_text})

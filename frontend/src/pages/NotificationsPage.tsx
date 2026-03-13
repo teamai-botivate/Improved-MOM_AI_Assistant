@@ -17,6 +17,13 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-4">
+      <button 
+        onClick={() => window.history.back()} 
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-brand-500 transition-colors mb-2 w-fit"
+      >
+        <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3 rotate-45"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+        Back
+      </button>
       <h2 className="text-xl font-bold text-gray-900 dark:text-white">Notifications</h2>
 
       {isLoading ? (
