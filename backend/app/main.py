@@ -76,6 +76,11 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
+@app.get("/")
+async def root():
+    return {"message": f"Welcome to {settings.APP_NAME} API. Visit /docs for documentation."}
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "app": settings.APP_NAME, "database": "Google Sheets"}
