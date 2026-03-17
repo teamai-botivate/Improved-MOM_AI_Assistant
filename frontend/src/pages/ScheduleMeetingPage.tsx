@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
@@ -7,7 +7,7 @@ import type { MeetingFormData, AttendanceStatus } from '../types';
 
 const emptyForm: MeetingFormData = {
   title: '',
-  organization: 'Botivate Services LLP',
+  organization: '',
   meeting_type: '',
   meeting_mode: 'Online',
   date: '',
@@ -24,6 +24,15 @@ export default function ScheduleMeetingPage() {
   const [form, setForm] = useState<MeetingFormData>({ ...emptyForm });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Load branding config for autofill
+  useEffect(() => {
+    api.get('/branding/').then(({ data }) => {
+      if (data.client_name) {
+        setForm(prev => ({ ...prev, organization: data.client_name }));
+      }
+    }).catch(err => console.error('Failed to load branding:', err));
+  }, []);
 
   const updateField = (field: string, value: any) => setForm((p) => ({ ...p, [field]: value }));
 

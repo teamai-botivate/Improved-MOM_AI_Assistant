@@ -19,9 +19,9 @@ def get_base_template(title: str, content: str, is_br: bool = False) -> str:
     # Branding config
     accent_primary = "#4f46e5" if not is_br else "#1e293b" # Royal Blue vs Deep Corporate Charcoal
     accent_secondary = "#60a5fa" if not is_br else "#64748b" 
-    brand_name = "Botivate" if not is_br else "Botivate Board Governance"
-    tagline = "Powering Businesses On Autopilot" if not is_br else "Official Board Resolution Management"
-    system_name = "Botivate MOM Management System" if not is_br else "Botivate Corporate Governance Portal"
+    brand_name = settings.CLIENT_NAME if not is_br else f"{settings.CLIENT_NAME} Board Governance"
+    tagline = "Meeting Intelligence Portal" if not is_br else "Official Board Resolution Management"
+    system_name = f"{settings.CLIENT_NAME} Management System" if not is_br else f"{settings.CLIENT_NAME} Corporate Governance Portal"
     
     return f"""
     <!DOCTYPE html>
@@ -42,7 +42,7 @@ def get_base_template(title: str, content: str, is_br: bool = False) -> str:
                                 <p style="margin: 4px 0 0; font-size: 13px; color: #64748b; font-style: italic;">{tagline}</p>
                             </td>
                             <td align="right" style="text-align: right;">
-                                <h2 style="margin: 0; font-size: 12px; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Botivate Services LLP</h2>
+                                <h2 style="margin: 0; font-size: 12px; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">{settings.CLIENT_NAME}</h2>
                             </td>
                         </tr>
                     </table>
@@ -62,6 +62,7 @@ def get_base_template(title: str, content: str, is_br: bool = False) -> str:
                         This is an automated notification from the <strong>{system_name}</strong>.<br>
                         Please do not reply directly to this email.
                     </p>
+                    {f'<p style="margin: 12px 0 0; color: #94a3b8; font-size: 11px; text-align: center; font-style: italic;">{settings.BOTIVATE_SIGNATURE}</p>' if settings.SHOW_BOTIVATE_BRANDING else ''}
                 </td>
             </tr>
             <!-- Bottom Ribbon -->

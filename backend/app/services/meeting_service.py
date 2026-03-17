@@ -7,6 +7,9 @@ import logging
 from app.services.google_sheets_service import SheetsDB, _to_int, upload_to_drive, delete_from_drive
 from app.schemas.schemas import MeetingCreate, ExtractedMOM, MeetingMOMUpdate
 
+from app.config import get_settings
+
+settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
@@ -161,7 +164,7 @@ class MeetingService:
 
         meeting_row = SheetsDB.append_row("Meetings", {
             "title": data.title,
-            "organization": data.organization or "Botivate Services LLP",
+            "organization": data.organization or settings.CLIENT_NAME,
             "meeting_type": data.meeting_type,
             "meeting_mode": data.meeting_mode,
             "date": data.date,

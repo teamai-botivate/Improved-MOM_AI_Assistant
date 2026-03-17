@@ -1,117 +1,102 @@
-# 🚀 Render Deployment Guide for Botivate MOM AI Assistant
+# 🚀 Render Deployment Guide (Full System)
 
-This guide provides step-by-step instructions to deploy the Botivate system (Backend + Frontend) on [Render.com](https://render.com).
-
-## 🛠 Prerequisites
-
-1.  **GitHub Repository:** Ensure your entire project is pushed to a GitHub repository.
-2.  **Render Account:** Create a free account on Render.
-3.  **Environment Variables:** Have your `.env` values ready (API Keys, Google Credentials, etc.).
+This guide provides the complete, step-by-step process for deploying the MOM AI Assistant to [Render.com](https://render.com).
 
 ---
 
-## 📂 Project Structure Note
-Your repository should have the following structure:
-```text
-root/
-├── backend/
-│   ├── app/
-│   ├── requirements.txt
-│   └── ...
-└── frontend/
-    ├── src/
-    ├── package.json
-    └── ...
+## 🏗 Prerequisites
+1.  **Render Account**: Sign up at [render.com](https://render.com).
+2.  **GitHub Repository**: Ensure your code (both `backend/` and `frontend/` folders) is pushed to a private GitHub repository.
+3.  **Google Credentials**: You must have your `google_credentials.json` ready (as explained in `CREDENTIALS_GUIDE.md`).
+
+---
+
+## 📦 1. Preparing the Code for Deployment
+
+### 1.1 Backend (`backend/app/main.py`)
+Ensure your CORS settings allow your future frontend URL. For now, you can use `*` to test, but it's better to update it later.
+
+### 1.2 Frontend API Base URL
+Ensure your frontend uses an environment variable for the API URL. In `frontend/src/api/index.ts` (or wherever you initialize axios), it should look like:
+```typescript
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+});
 ```
 
 ---
 
-## 🌎 Phase 1: Backend Deployment (FastAPI)
+## 🖥 2. Deploying the Backend (Web Service)
 
-1.  Log in to [Render Dashboard](https://dashboard.render.com).
-2.  Click **New +** and select **Web Service**.
+1.  Log in to **Render Dashboard**.
+2.  Click **New +** > **Web Service**.
 3.  Connect your GitHub repository.
-4.  Configure the service:
-    *   **Name:** `botivate-backend`
-    *   **Root Directory:** `backend`
-    *   **Runtime:** `Python 3`
-    *   **Build Command:** `pip install -r requirements.txt`
-    *   **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-    *   **Plan:** Free or Starter (Free tier spins down after inactivity).
-
-5.  **Environment Variables:**
-    Go to the **Environment** tab and add the following keys from your `.env`:
-    *   `OPENAI_API_KEY`: Your OpenAI key.
-    *   `ASSEMBLY_AI_KEY`: Your AssemblyAI key.
-    *   `GOOGLE_SHEETS_ID`: ID of your Google Sheet.
-    *   `GOOGLE_DRIVE_FOLDER_ID`: ID of your Drive folder.
-    *   `GOOGLE_SERVICE_ACCOUNT_JSON`: Copy the entire content of your JSON file.
-    *   `SMTP_USER` & `SMTP_PASSWORD`: For emails.
-    *   `FRONTEND_URL`: `https://your-frontend-subdomain.onrender.com` (Add this later).
-
-6.  Click **Create Web Service**. Wait for the logs to show "Uvicorn running".
-7.  **Copy the Service URL:** (e.g., `https://botivate-backend.onrender.com`).
+4.  **Configure Service**:
+    *   **Name**: `mom-backend`
+    *   **Runtime**: `Python 3`
+    *   **Root Directory**: `backend` (CRITICAL)
+    *   **Build Command**: `pip install -r requirements.txt`
+    *   **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+5.  **Environment Variables**:
+    Click **Advanced** > **Add Environment Variable** and add ALL keys from your `.env` file:
+    *   `OPENAI_API_KEY`: `...`
+    *   `ASSEMBLY_AI_API_KEY`: `...`
+    *   `SPREADSHEET_ID`: `...`
+    *   `DRIVE_FOLDER_ID`: `...`
+    *   `SMTP_USER`: `...`
+    *   `SMTP_PASSWORD`: `...` (16-char app password)
+    *   `CLIENT_NAME`: `...`
+    *   `CLIENT_ADDRESS`: `...`
+    *   `CLIENT_CS_EMAIL`: `...`
+    *   `PORT`: `10000` (Render's default)
+6.  **Google Credentials Secret File**:
+    *   Go to **Secret Files** tab in Render.
+    *   Filename: `google_credentials.json`
+    *   Contents: Paste the ENTIRE content of your local `google_credentials.json` file.
+7.  Click **Deploy Web Service**.
+8.  **Wait**: Note down the URL Render provides (e.g., `https://mom-backend.onrender.com`).
 
 ---
 
-## 🎨 Phase 2: Frontend Deployment (Vite + React)
+## 🌐 3. Deploying the Frontend (Static Site)
 
-1.  Click **New +** and select **Static Site**.
+1.  Click **New +** > **Static Site**.
 2.  Connect the same GitHub repository.
-3.  Configure the site:
-    *   **Name:** `botivate-ai`
-    *   **Root Directory:** `frontend`
-    *   **Build Command:** `npm install && npm run build`
-    *   **Publish Directory:** `dist`
-
-4.  **Environment Variables:**
-    Add the crucial API connection variable:
-    *   **Key:** `VITE_API_BASE_URL`
-    *   **Value:** `https://your-backend-url.onrender.com/api/v1` (Use the URL from Phase 1).
-
-5.  Click **Create Static Site**.
-
----
-
-## 🔗 Phase 3: Setup Rewrites (Important for React Router)
-
-Since this is a Single Page Application (SPA), you need to tell Render to redirect all requests to `index.html`.
-
-1.  In your Frontend Static Site settings on Render, go to **Redirects/Rewrites**.
-2.  Click **Add Rule**.
-3.  **Source:** `/*`
-4.  **Destination:** `/index.html`
-5.  **Action:** `Rewrite`
+3.  **Configure Site**:
+    *   **Name**: `mom-frontend`
+    *   **Root Directory**: `frontend` (CRITICAL)
+    *   **Build Command**: `npm install && npm run build`
+    *   **Publish Directory**: `dist`
+4.  **Environment Variables**:
+    Click **Advanced** > **Add Environment Variable**:
+    *   `VITE_API_BASE_URL`: `https://mom-backend.onrender.com/api/v1` (Paste your Backend URL here + `/api/v1`)
+5.  **Redirects/Rewrites**:
+    *   Go to **Redirects** tab.
+    *   Source: `/*`
+    *   Destination: `/index.html`
+    *   Action: `Rewrite` (This ensures React Router works after refresh).
+6.  Click **Deploy Static Site**.
 
 ---
 
-## ⚡ Phase 4: Handle CORS (Backend Update)
+## 🔗 4. Final Connection (CORS Update)
 
-Ensure your backend allows requests from your new frontend URL.
+Once your frontend is deployed (e.g., `https://mom-frontend.onrender.com`), you must tell the backend to allow requests from it.
 
-1.  Go to `backend/app/main.py`.
-2.  Update `CORSMiddleware` `allow_origins`:
-```python
-origins = [
-    "http://localhost:5173",
-    "https://your-frontend-url.onrender.com", # Add this
-]
-```
-3.  Commit and push to GitHub. Render will automatically redeploy.
+1.  Go to your **Backend Service** on Render.
+2.  Go to **Environment Variables**.
+3.  Add/Update:
+    *   `FRONTEND_URL`: `https://mom-frontend.onrender.com`
+4.  The backend will automatically redeploy.
 
 ---
 
-## 🔍 Troubleshooting
+## 🛠 Troubleshooting Render
 
-*   **Python Version:** If you get a build error, add an environment variable `PYTHON_VERSION` with value `3.10` or higher.
-*   **Module Not Found:** Ensure all dependencies used in the code are listed in `backend/requirements.txt`.
-*   **Infinite Loading:** Check the browser console (F12). Usually, this means `VITE_API_BASE_URL` is wrong or missing `/api/v1` at the end.
-*   **Google Credentials:** Make sure the Service Account email has "Editor" access to the Google Sheet and the Drive Folder.
-
----
-
-## 💡 Pro Tip: Custom Domain
-If you have a custom domain (e.g., `app.botivate.in`), you can add it in the **Settings** tab of both Frontend and Backend to make the app look professional.
+*   **Build Fails**: Check if you set the **Root Directory** correctly (`backend` or `frontend`).
+*   **API Errors**: Ensure `VITE_API_BASE_URL` in the frontend has `https://` and ends with `/api/v1`.
+*   **Google Auth 403**: Ensure your Render Backend environment variables (Spreadsheet ID, etc.) match exactly.
+*   **SMTP Errors**: Check if your Gmail App Password has spaces (it shouldn't).
 
 ---
-**Botivate Services LLP (c) 2026**
+*Botivate Services LLP © 2026. Secure Deployment on Autopilot.*

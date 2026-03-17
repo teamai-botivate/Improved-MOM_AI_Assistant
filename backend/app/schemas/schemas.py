@@ -203,7 +203,7 @@ class FileResponse(BaseModel):
 
 class MeetingCreate(BaseModel):
     title: str
-    organization: Optional[str] = "Botivate Services LLP"
+    organization: Optional[str] = None
     meeting_type: Optional[str] = None
     meeting_mode: Optional[str] = None
     date: date

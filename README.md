@@ -13,6 +13,7 @@ Botivate is an intelligent, agentic system designed to autonomously handle, anal
 - **Board Resolution (BR) Management:** Specialized workflow for high-stakes resolutions with meeting-specific folder archival and governance evidence tracking.
 - **Automated Notifications:** Botivate automatically sends professional summary emails, task assignments, and overdue warnings with dynamically generated, meticulously styled **PDF attachments**.
 - **Rich Analytics Dashboard:** Gain deep insights into team productivity, meeting frequency trends, attendance rates, and action-item completion metrics.
+- **Dynamic White-Labeling:** Fully customizable branding (Company Name, Address, Logo) and optional "Powered by Botivate" attribution via environment variables.
 - **Modern & Premium UI:** Designed with a sleek, minimalist dark/light mode interface characterized by glassmorphism, dynamic animations, and brand-consistent styling.
 
 ---
@@ -112,7 +113,7 @@ graph TD
 
 ## ℹ️ Setup & Installation
 
-Please refer to the [SETUP.md](SETUP.md) file for comprehensive, step-by-step instructions on configuring your Google Cloud Project, Assembly AI, OpenAI, setting up credentials, and running Botivate locally.
+Please refer to the [SETUP.md](SETUP.md) for local installation and the [CREDENTIALS_GUIDE.md](CREDENTIALS_GUIDE.md) for a detailed step-by-step on obtaining all necessary API keys (OpenAI, AssemblyAI, Gmail SMTP, Google Cloud).
 
 ---
 *Botivate Services LLP © 2026. Powering Businesses On Autopilot.*

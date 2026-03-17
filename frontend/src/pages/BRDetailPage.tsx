@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -55,6 +55,11 @@ export default function BRDetailPage() {
     // ── Editable State ─────────────────────────────────
     const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
     const [taskEditData, setTaskEditData] = useState<{ title: string; description: string; responsible_person: string; deadline: string; status: string }>({ title: '', description: '', responsible_person: '', deadline: '', status: 'Pending' });
+    const [branding, setBranding] = useState<{ client_cs_email: string } | null>(null);
+
+    useEffect(() => {
+        api.get('/branding/').then(({ data }) => setBranding(data)).catch(() => {});
+    }, []);
 
     const handleDownloadPDF = () => {
         if (!id) return;
@@ -144,7 +149,8 @@ export default function BRDetailPage() {
     };
 
     const handleSendToCS = async () => {
-        const csEmail = window.prompt('Enter CS Email (Leave blank to use default):', 'prabhatkumarsictc7070@gmail.com');
+        const defaultEmail = branding?.client_cs_email || 'prabhatkumarsictc7070@gmail.com';
+        const csEmail = window.prompt('Enter CS Email (Leave blank to use default):', defaultEmail);
         
         // If user cancels the prompt
         if (csEmail === null) return;

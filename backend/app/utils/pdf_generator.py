@@ -11,6 +11,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
+from app.config import get_settings
+
+settings = get_settings()
 logger = logging.getLogger("pdf_generator")
 
 LOGO_PATH = r"c:\Users\prabh\Desktop\MOM_AI_Assistant\B PNG.png"
@@ -91,12 +94,14 @@ def draw_header_footer(canvas, doc):
     # Company Info (Right)
     canvas.setFillColor(colors.HexColor("#1e293b"))
     canvas.setFont("Helvetica-Bold", 12)
-    canvas.drawRightString(565, 790, "BOTIVATE SERVICES LLP")
+    canvas.drawRightString(565, 790, settings.CLIENT_NAME.upper())
     canvas.setFont("Helvetica", 10)
     canvas.setFillColor(colors.HexColor("#4f46e5"))
-    canvas.drawRightString(565, 775, "Shriram Business Park, Block-I ,")
-    canvas.drawRightString(565, 762, "Office No- 224 , Vidhan Sabha Rd,")
-    canvas.drawRightString(565, 749, "Raipur, Chhattisgarh 493111")
+    # Render full address with wrapping (Right Aligned)
+    addr_style = ParagraphStyle('AddrStyle', fontName='Helvetica', fontSize=9, textColor=colors.HexColor("#4f46e5"), leading=11, alignment=TA_RIGHT)
+    addr_p = Paragraph(settings.CLIENT_ADDRESS, addr_style)
+    w, h = addr_p.wrap(250, 100) # Width of 250, max height 100
+    addr_p.drawOn(canvas, 565 - w, 785 - h) 
 
     # Divider Line
     canvas.setStrokeColor(colors.HexColor("#4f46e5"))
@@ -105,11 +110,17 @@ def draw_header_footer(canvas, doc):
 
     # Footer Text
     canvas.setFillColor(colors.HexColor("#000000"))
-    canvas.setFont("Helvetica-Bold", 12)
     canvas.drawString(30, 45, "HR Department / Intelligence Division")
     canvas.setFont("Helvetica-Bold", 10)
     canvas.setFillColor(colors.HexColor("#475569"))
-    canvas.drawString(30, 32, "Botivate Services LLP")
+    canvas.drawString(30, 32, settings.CLIENT_NAME)
+
+    # Powered by Botivate (Watermark)
+    if settings.SHOW_BOTIVATE_BRANDING:
+        canvas.setFont("Helvetica-Oblique", 8)
+        canvas.setFillColor(colors.HexColor("#94a3b8"))
+        canvas.drawRightString(PAGE_W - 30, 32, settings.BOTIVATE_SIGNATURE)
+    
     canvas.restoreState()
 
 
@@ -165,7 +176,7 @@ def _transcript_header_footer(canvas, doc):
     canvas.setFont("Helvetica-Bold", 14)
     canvas.drawString(24, PAGE_H - 35, "VERBATIM TRANSCRIPT")
     canvas.setFont("Helvetica", 9)
-    canvas.drawRightString(PAGE_W - 30, PAGE_H - 25, "Botivate Meeting Intelligence")
+    canvas.drawRightString(PAGE_W - 30, PAGE_H - 25, f"{settings.CLIENT_NAME} Intelligence")
     canvas.drawRightString(PAGE_W - 30, PAGE_H - 38, f"Generated: {datetime.now().strftime('%d %b %Y, %I:%M %p')}")
     
     # Logo in Header
@@ -181,7 +192,13 @@ def _transcript_header_footer(canvas, doc):
     canvas.rect(8, 0, PAGE_W - 8, 30, fill=1, stroke=0)
     canvas.setFillColor(colors.white)
     canvas.setFont("Helvetica", 8)
-    canvas.drawString(20, 10, "Botivate Services LLP | Speech-to-Text Record")
+    canvas.drawString(20, 10, f"{settings.CLIENT_NAME} | Official Transcript")
+    
+    # Powered by Botivate (Watermark)
+    if settings.SHOW_BOTIVATE_BRANDING:
+        canvas.setFont("Helvetica-Oblique", 7)
+        canvas.setFillColor(colors.HexColor("#94a3b8"))
+        canvas.drawRightString(PAGE_W - 70, 10, settings.BOTIVATE_SIGNATURE)
     canvas.drawRightString(PAGE_W - 20, 10, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -256,7 +273,7 @@ def _audit_header_footer(canvas, doc):
     canvas.drawString(30, PAGE_H - 30, "AI PROCESSING AUDIT LOG")
     canvas.setFont("Helvetica", 8)
     canvas.drawString(30, PAGE_H - 44, "Chunk-by-Chunk Summarization Trail")
-    canvas.drawRightString(PAGE_W - 30, PAGE_H - 30, "Botivate Intelligence Engine")
+    canvas.drawRightString(PAGE_W - 30, PAGE_H - 30, f"{settings.CLIENT_NAME} Intelligence Engine")
     canvas.drawRightString(PAGE_W - 30, PAGE_H - 44, f"{datetime.now().strftime('%d %b %Y, %I:%M %p')}")
 
     # Logo in Header
@@ -272,7 +289,13 @@ def _audit_header_footer(canvas, doc):
     canvas.rect(0, 0, PAGE_W, 28, fill=1, stroke=0)
     canvas.setFillColor(colors.HexColor("#64748b"))
     canvas.setFont("Helvetica", 7)
-    canvas.drawString(20, 10, "CONFIDENTIAL — AI Audit Trail | Botivate Services LLP")
+    canvas.drawString(20, 10, f"CONFIDENTIAL — AI Audit Trail | {settings.CLIENT_NAME}")
+
+    # Powered by Botivate (Watermark)
+    if settings.SHOW_BOTIVATE_BRANDING:
+        canvas.setFont("Helvetica-Oblique", 7)
+        canvas.setFillColor(colors.HexColor("#94a3b8"))
+        canvas.drawRightString(PAGE_W - 70, 10, settings.BOTIVATE_SIGNATURE)
     canvas.drawRightString(PAGE_W - 20, 10, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -348,14 +371,20 @@ def _summary_header_footer(canvas, doc):
             pass
     canvas.setFillColor(colors.HexColor("#1e1b4b"))
     canvas.setFont("Helvetica", 8)
-    canvas.drawRightString(PAGE_W - 75, PAGE_H - 30, "Botivate Services LLP")
+    canvas.drawRightString(PAGE_W - 75, PAGE_H - 30, settings.CLIENT_NAME)
     canvas.drawRightString(PAGE_W - 75, PAGE_H - 42, f"{datetime.now().strftime('%d %b %Y')}")
     # Footer
     canvas.setFillColor(colors.HexColor("#4f46e5"))
     canvas.rect(0, 0, PAGE_W, 3, fill=1, stroke=0)
     canvas.setFillColor(colors.HexColor("#64748b"))
     canvas.setFont("Helvetica", 7)
-    canvas.drawString(20, 8, "Botivate Services LLP | Executive Briefing")
+    canvas.drawString(20, 8, f"{settings.CLIENT_NAME} | Executive Briefing")
+
+    # Powered by Botivate (Watermark)
+    if settings.SHOW_BOTIVATE_BRANDING:
+        canvas.setFont("Helvetica-Oblique", 7)
+        canvas.setFillColor(colors.HexColor("#94a3b8"))
+        canvas.drawRightString(PAGE_W - 70, 8, settings.BOTIVATE_SIGNATURE)
     canvas.drawRightString(PAGE_W - 20, 8, f"Page {doc.page}")
     canvas.restoreState()
 

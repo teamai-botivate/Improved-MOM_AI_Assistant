@@ -1,4 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import api from '../api';
 import { useThemeStore } from '../store';
 import {
   HomeIcon,
@@ -20,6 +22,11 @@ const navItems = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { dark, toggle } = useThemeStore();
+  const [branding, setBranding] = useState<{ show_botivate_branding: boolean; client_name: string } | null>(null);
+
+  useEffect(() => {
+    api.get('/branding/').then(({ data }) => setBranding(data)).catch(() => {});
+  }, []);
   const getPageLabel = () => {
     const matched = navItems.find((n) => n.path === location.pathname);
     if (matched) return matched.label;
@@ -80,15 +87,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Powered by Footer in Sidebar */}
-        <div className="p-5 border-t border-slate-100 dark:border-slate-800 mt-auto bg-slate-50/50 dark:bg-[#121622]/50">
-          <div className="flex items-center gap-3.5">
-            <img src="/botivate-logo-cropped.png" alt="Logo" className="w-[32px] h-[32px] object-contain drop-shadow-sm shrink-0" />
-            <div className="overflow-hidden flex flex-col justify-center">
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Powered by</p>
-              <p className="text-[13px] font-extrabold text-slate-800 dark:text-white leading-none truncate">Botivate Services</p>
+        {branding?.show_botivate_branding && (
+          <a 
+            href="https://botivate.in/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="p-5 border-t border-slate-100 dark:border-slate-800 mt-auto bg-slate-50/50 dark:bg-[#121622]/50 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer block"
+          >
+            <div className="flex items-center gap-3.5">
+              <img src="/botivate-logo-cropped.png" alt="Logo" className="w-[32px] h-[32px] object-contain drop-shadow-sm shrink-0" />
+              <div className="overflow-hidden flex flex-col justify-center">
+                <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mb-0.5">Powered by</p>
+                <p className="text-[13px] font-extrabold text-slate-800 dark:text-white leading-none truncate">Botivate Services</p>
+              </div>
             </div>
-          </div>
-        </div>
+          </a>
+        )}
       </aside>
 
       {/* ════════════════════ MAIN AREA ════════════════════ */}
@@ -100,7 +114,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {/* Left: Dynamic Page Title */}
           <div>
             <h2 className="text-[20px] font-extrabold text-slate-800 dark:text-white leading-tight">{pageLabel}</h2>
-            <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Welcome back to Botivate.</p>
+            <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">Welcome back to {branding?.client_name || 'Botivate'}.</p>
           </div>
 
           {/* Right: Actions */}

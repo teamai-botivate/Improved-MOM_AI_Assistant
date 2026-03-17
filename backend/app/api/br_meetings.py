@@ -314,7 +314,7 @@ async def send_br_to_cs(br_id: int, data: SendCSRequest):
     if not br:
         raise HTTPException(status_code=404, detail="Board Resolution not found")
     
-    target_email = data.email or settings.DEFAULT_CS_EMAIL
+    target_email = data.email or settings.CLIENT_CS_EMAIL
     if not target_email:
         raise HTTPException(status_code=400, detail="No CS email provided and no default configured")
 

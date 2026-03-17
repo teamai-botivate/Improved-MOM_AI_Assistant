@@ -110,8 +110,14 @@ EMAIL_FROM="Botivate Governance <your-email@gmail.com>"
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT=587
 
+# Branding & White-Labeling (Identified from Step 6)
+CLIENT_NAME="Your Client Name"
+CLIENT_ADDRESS="Full Address, Multi-line, with commas"
+CLIENT_CS_EMAIL="cs@client.com"
+SHOW_BOTIVATE_BRANDING=true
+BOTIVATE_SIGNATURE="Powered by Botivate Services LLP"
+
 # App Constants
-DEFAULT_CS_EMAIL="admin@yourcompany.com"
 FRONTEND_URL="http://localhost:5173"
 ```
 
@@ -170,5 +176,12 @@ FRONTEND_URL="http://localhost:5173"
 2. **`assemblyai.errors.UnauthorizedError`**: Incorrect STT token. Verify `ASSEMBLY_AI_API_KEY` without trailing spaces.
 3. **`aiosmtplib.errors.SMTPAuthenticationError`**: Your newly generated Google App password has spaces in it. Make sure inside the `.env` the token is squished together (e.g., `abcdefghijklmnop`).
 4. **Missing Sheet Headers:** To allow dynamic column syncing, ensure on your first run that if there is a `KeyError: row index out of bound`, it means the actual visible header titles inside the blank Spreadsheet tabs at row 1 don't match the Python script enums. Ensure your tabs are specifically named `Meetings`, `Attendees`, `Tasks`, `Agenda`, `Discussions`, `Global_Settings`, `Notifications`, `Users`, `BR_Meetings`, `BR_Tasks`, `BR_Discussions`.
+5. **Branding Not Reflecting:** Ensure you have restarted the backend server after modifying `.env` variables.
+
+---
+## 📄 Documentation Reference
+- [CREDENTIALS_GUIDE.md](CREDENTIALS_GUIDE.md): Detailed steps for API keys.
+- [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md): Guide for cloud deployment.
+- [WHITE_LABEL_GUIDE.md](WHITE_LABEL_GUIDE.md): Detailed white-label architecture.
 ---
 *Botivate Services LLP © 2026. Secure Governance on Autopilot.*

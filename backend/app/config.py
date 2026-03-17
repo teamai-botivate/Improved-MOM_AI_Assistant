@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     DEFAULT_CS_EMAIL: str = "prabhatkumarsictc7070@gmail.com"
 
+    # Branding & White-Labeling
+    CLIENT_NAME: str = "Botivate Services LLP"
+    CLIENT_ADDRESS: str = "Shriram Business Park, Block-I , Office No- 224 , Vidhan Sabha Rd, Raipur, Chhattisgarh 493111"
+    CLIENT_CS_EMAIL: str = "prabhatkumarsictc7070@gmail.com"
+    SHOW_BOTIVATE_BRANDING: bool = True
+    BOTIVATE_SIGNATURE: str = "Powered by Botivate Services LLP"
+
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./mom_assistant.db"
 

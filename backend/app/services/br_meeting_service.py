@@ -8,6 +8,9 @@ from app.services.google_sheets_service import SheetsDB, _to_int, upload_to_driv
 from app.schemas.schemas import MeetingCreate, ExtractedMOM, MeetingMOMUpdate
 from app.services.meeting_service import DotDict, _parse_date, _parse_time, _row_to_meeting_obj, _row_to_attendee, _row_to_agenda, _row_to_discussion, _row_to_task, _row_to_next_meeting
 
+from app.config import get_settings
+
+settings = get_settings()
 logger = logging.getLogger(__name__)
 
 def _load_br_relations(meeting_id: int):
@@ -37,7 +40,7 @@ class BRService:
 
         meeting_row = SheetsDB.append_row("BR_Meetings", {
             "title": data.title,
-            "organization": data.organization or "Botivate Services LLP",
+            "organization": data.organization or settings.CLIENT_NAME,
             "meeting_type": data.meeting_type or "Board Resolution",
             "meeting_mode": data.meeting_mode,
             "date": data.date,

@@ -19,6 +19,9 @@ from app.services.meeting_service import MeetingService
 from app.services.br_meeting_service import BRService
 from app.services.google_sheets_service import upload_to_drive, ensure_subfolder
 from app.notifications.notification_service import NotificationService
+from app.config import get_settings
+
+settings = get_settings()
 
 router = APIRouter()
 
@@ -57,12 +60,14 @@ def draw_header_footer(canvas, doc):
 
     canvas.setFillColor(colors.HexColor("#1e293b"))
     canvas.setFont("Helvetica-Bold", 12)
-    canvas.drawRightString(565, 790, "BOTIVATE SERVICES LLP")
+    canvas.drawRightString(565, 790, settings.CLIENT_NAME.upper())
     canvas.setFont("Helvetica", 10)
     canvas.setFillColor(colors.HexColor("#4f46e5"))
-    canvas.drawRightString(565, 775, "Shriram Business Park, Block-I ,")
-    canvas.drawRightString(565, 762, "Office No- 224 , Vidhan Sabha Rd,")
-    canvas.drawRightString(565, 749, "Raipur, Chhattisgarh 493111")
+    # Render full address with wrapping (Right Aligned)
+    addr_style = ParagraphStyle('AddrStyle', fontName='Helvetica', fontSize=9, textColor=colors.HexColor("#4f46e5"), leading=11, alignment=TA_RIGHT)
+    addr_p = Paragraph(settings.CLIENT_ADDRESS, addr_style)
+    w, h = addr_p.wrap(250, 100) # Width of 250, max height 100
+    addr_p.drawOn(canvas, 565 - w, 785 - h)
 
     canvas.setStrokeColor(colors.HexColor("#4f46e5"))
     canvas.setLineWidth(1.5)
@@ -73,7 +78,13 @@ def draw_header_footer(canvas, doc):
     canvas.drawString(30, 45, "HR Department")
     canvas.setFont("Helvetica-Bold", 10)
     canvas.setFillColor(colors.HexColor("#475569"))
-    canvas.drawString(30, 32, "Botivate Services LLP")
+    canvas.drawString(30, 32, settings.CLIENT_NAME)
+
+    # Powered by Botivate (Watermark)
+    if settings.SHOW_BOTIVATE_BRANDING:
+        canvas.setFont("Helvetica-Oblique", 8)
+        canvas.setFillColor(colors.HexColor("#94a3b8"))
+        canvas.drawRightString(A4[0] - 30, 32, settings.BOTIVATE_SIGNATURE)
 
     canvas.restoreState()
 
@@ -118,7 +129,7 @@ def generate_meeting_pdf(meeting) -> tuple:
         f"<b>{meeting.date}</b> at <b>{meeting.time}</b> below:", normal_style))
     elements.append(Spacer(1, 10))
 
-    org_name = meeting.organization or "Botivate Services LLP"
+    org_name = meeting.organization or settings.CLIENT_NAME
     elements.append(Paragraph(f"• <b>Organization:</b> {org_name}", normal_style))
     pdf_meeting_type = meeting.meeting_type if meeting.meeting_type else ("Board Resolution" if is_br else "Regular Meeting")
     elements.append(Paragraph(f"• <b>Meeting Type:</b> {pdf_meeting_type}", normal_style))
