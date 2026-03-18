@@ -97,20 +97,36 @@ class EmailService:
             part.add_header('Content-Disposition', f'attachment; filename="{attachment_name}"')
             message.attach(part)
 
+        # Try Port 465 first (Implicit TLS) as it often bypasses cloud firewall blocks
         try:
             await aiosmtplib.send(
                 message,
                 hostname=settings.SMTP_HOST,
-                port=settings.SMTP_PORT,
-                start_tls=True,
+                port=465,
+                use_tls=True,
                 username=settings.SMTP_USER,
                 password=settings.SMTP_PASSWORD,
+                timeout=10,
             )
-            logger.info("Email sent to %s: %s", to_email, subject)
+            logger.info("Email sent to %s: %s (via Port 465)", to_email, subject)
             return True
-        except Exception as e:
-            logger.error("Failed to send email to %s: %s", to_email, e)
-            return False
+        except Exception as e1:
+            logger.warning("Port 465 failed for %s (%s). Falling back to Port 587...", to_email, e1)
+            try:
+                await aiosmtplib.send(
+                    message,
+                    hostname=settings.SMTP_HOST,
+                    port=587,
+                    start_tls=True,
+                    username=settings.SMTP_USER,
+                    password=settings.SMTP_PASSWORD,
+                    timeout=10,
+                )
+                logger.info("Email sent to %s: %s (via Port 587)", to_email, subject)
+                return True
+            except Exception as e2:
+                logger.error("Failed to send email to %s on BOTH ports: %s", to_email, e2)
+                return False
 
     @staticmethod
     async def send_task_assignment(to_email: str, task_title: str, meeting_title: str, deadline: str | None, is_br: bool = False):
