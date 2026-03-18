@@ -127,8 +127,18 @@ To bypass cloud port restrictions (on Render/HF), Botivate uses a **Google Sheet
     }
     ```
 4.  Click **Save** (disk icon) and name the project "MOM Email Automator".
-5.  In the toolbar, select **`setupTrigger`** from the dropdown and click **Run**.
-6.  Grant permissions when prompted. The bot is now 100% automated!
+5.  **Method 1: Automation Script**
+    *   In the toolbar, select **`setupTrigger`** from the dropdown and click **Run**.
+    *   Grant permissions when prompted. The bot is now 100% automated!
+
+6.  **Method 2: Manual Trigger (Alternative)**
+    *   If you don't see `setupTrigger`, click the **Triggers ⏰** icon on the left sidebar.
+    *   Click **+ Add Trigger** (bottom right).
+    *   Choose: `processEmailQueue`
+    *   Select event source: `Time-driven`
+    *   Select type: `Minutes timer`
+    *   Interval: `Every minute`
+    *   Click **Save**.
 
 ---
 
