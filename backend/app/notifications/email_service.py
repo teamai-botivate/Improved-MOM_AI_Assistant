@@ -77,11 +77,15 @@ def get_base_template(title: str, content: str, is_br: bool = False) -> str:
 
 class EmailService:
     @staticmethod
-    async def send_email(to_email: str, subject: str, body_html: str, attachment_data: Optional[bytes] = None, attachment_name: Optional[str] = None) -> bool:
+    async def send_email(to_email: str, subject: str, body_html: str, attachment_data: Optional[bytes] = None, attachment_name: Optional[str] = None, from_name: Optional[str] = None) -> bool:
         """Queues an email into the Google Sheets 'EmailQueue' tab for processing by Apps Script."""
         try:
+            # Use provided from_name or fallback to settings
+            sender_name = from_name or settings.CLIENT_NAME
+            
             email_data = {
                 "to_email": to_email,
+                "from_name": sender_name,
                 "subject": subject,
                 "body": body_html,
                 "status": "Pending",
@@ -92,7 +96,7 @@ class EmailService:
             # The system already uploads PDFs to Drive and puts links in the summary/notif.
             
             SheetsDB.append_row("EmailQueue", email_data)
-            logger.info("Email queued in Google Sheets for %s: %s", to_email, subject)
+            logger.info("Email queued in Google Sheets for %s: %s (From: %s)", to_email, subject, sender_name)
             return True
         except Exception as e:
             logger.error("Failed to queue email in Google Sheets for %s: %s", to_email, e)

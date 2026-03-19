@@ -89,7 +89,7 @@ SHEET_SCHEMAS: dict[str, list[str]] = {
         "id", "meeting_id", "file_path", "file_type", "uploaded_at",
     ],
     "EmailQueue": [
-        "id", "to_email", "subject", "body", "status", "created_at"
+        "id", "to_email", "from_name", "subject", "body", "status", "created_at"
     ],
     # ── Board Resolution (BR) Sheets ──────────────────────────────────
     "BR_Meetings": [
