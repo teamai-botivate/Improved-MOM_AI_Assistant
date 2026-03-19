@@ -22,26 +22,32 @@ Ensure your system processes the following dependencies before proceeding:
 Botivate uses **Google Sheets** as a database and **Google Drive** for file and generated PDF archival. Follow these steps meticulously:
 
 ### Step 1.1: Create a Google Cloud Project
+
 - Navigate to the [Google Cloud Console](https://console.cloud.google.com/).
 - Create a new project named (e.g., `MOM-AI-Assistant-DB`).
 
 ### Step 1.2: Enable APIs
+
 Enable the following two APIs in your newly created project via the "API Library":
+
 - **Google Sheets API**
 - **Google Drive API**
 
 ### Step 1.3: Create a Service Account
+
 - Navigate to **IAM & Admin > Service Accounts**.
 - Click **Create Service Account** and assign it a name (e.g., `botivate-agent`).
 - Complete creation. *No special optional roles are strictly needed at this point.*
 
 ### Step 1.4: Download the JSON Credential Key
+
 - Click on your new Service Account from the list.
 - Navigate to the **Keys** tab.
 - Click **Add Key > Create New Key**, select **JSON**, and download the file.
 - **IMPORTANT**: Rename this JSON file to exactly `google_credentials.json` and place it inside the `/backend` directory of this repository. *Do not commit this file to GitHub!*
 
 ### Step 1.5: Prepare Cloud Storage Directories & DB
+
 - Open [Google Sheets](https://docs.google.com/spreadsheets/u/0/) and create a new, completely blank Spreadsheet.
   - Copy its **Spreadsheet ID** from the URL (the random string of alphanumeric characters between `/d/` and `/edit`).
 - Open [Google Drive](https://drive.google.com/drive/u/0/) and create a new top-level Folder to store MOM Archive assets (PDFs and Recordings).
@@ -55,11 +61,13 @@ Enable the following two APIs in your newly created project via the "API Library
 Botivate's intelligence relies on two core Cloud vendors for processing audio.
 
 ### Step 2.1: AssemblyAI Configuration (Audio Processing STT)
+
 - Create an account on [AssemblyAI](https://www.assemblyai.com/).
 - Navigate to your dashboard and copy your **AssemblyAI API Key**.
 - This enables state-of-the-art multilingual transcriptions (Hindi and English).
 
 ### Step 2.2: OpenAI Configuration (MOM Mapping & Reduction)
+
 - Create a developer account on [OpenAI Platform](https://platform.openai.com/).
 - Ensure your billing is active and fund your account.
 - Navigate to the "API keys" section to generate a new secret key.
@@ -72,73 +80,88 @@ Botivate's intelligence relies on two core Cloud vendors for processing audio.
 To bypass cloud port restrictions (on Render/HF), Botivate uses a **Google Sheets Email Queue**. A Google Apps Script processes this queue and sends emails via your Gmail account.
 
 ### Step 3.1: Create & Deploy the Apps Script
-1.  Open the Google Sheet you created in Step 1.5.
-2.  Go to **Extensions > Apps Script**.
-3.  Delete any existing code and paste the following:
-    ```javascript
-    /**
-     * Automatically sends emails from the EmailQueue sheet
-     * Trigger: Time-driven (every 1 minute)
-     */
-    function processEmailQueue() {
-      var ss = SpreadsheetApp.getActiveSpreadsheet();
-      var sheet = ss.getSheetByName("EmailQueue");
-      if (!sheet) return;
 
-      var data = sheet.getDataRange().getValues();
-      if (data.length <= 1) return; // Only headers
+1. Open the Google Sheet you created in Step 1.5.
+2. Go to **Extensions > Apps Script**.
+3. Delete any existing code and paste the following:
 
-      var headers = data[0];
-      var toIdx = headers.indexOf("to_email");
-      var subIdx = headers.indexOf("subject");
-      var bodyIdx = headers.indexOf("body");
-      var statusIdx = headers.indexOf("status");
+   ```javascript
+   /**
+    * Automatically sends emails from the EmailQueue sheet
+    * Trigger: Time-driven (every 1 minute)
+    */
+   function processEmailQueue() {
+     var ss = SpreadsheetApp.getActiveSpreadsheet();
+     var sheet = ss.getSheetByName("EmailQueue");
+     if (!sheet) return;
+     
+     var data = sheet.getDataRange().getValues();
+     if (data.length <= 1) return; // Sirf header hai
+     
+     var headers = data[0];
+     var toIdx = headers.indexOf("to_email");
+     var fromIdx = headers.indexOf("from_name"); // Naya column read kar rahe hain
+     var subIdx = headers.indexOf("subject");
+     var bodyIdx = headers.indexOf("body");
+     var statusIdx = headers.indexOf("status");
+     
+     for (var i = 1; i < data.length; i++) {
+       var row = data[i];
+       if (row[statusIdx] === "Pending") {
+         try {
+           var toEmail = row[toIdx];
+           var fromName = row[fromIdx] || "MOM Assistant"; // Backend se aya hua company name
+         
+           if (!toEmail) continue;
+         
+           // Email bhej rahe hain dynamic company name ke saath
+           GmailApp.sendEmail(toEmail, row[subIdx], "", {
+             htmlBody: row[bodyIdx],
+             name: fromName // <-- Ab ye dynamic hai!
+           });
+         
+           // Status update kardo
+           sheet.getRange(i + 1, statusIdx + 1).setValue("Sent");
+         } catch (e) {
+           sheet.getRange(i + 1, statusIdx + 1).setValue("Error: " + e.message);
+         }
+       }
+     }
+   }
 
-      for (var i = 1; i < data.length; i++) {
-        var row = data[i];
-        if (row[statusIdx] === "pending") {
-          try {
-            MailApp.sendEmail({
-              to: row[toIdx],
-              subject: row[subIdx],
-              htmlBody: row[bodyIdx]
-            });
-            sheet.getRange(i + 1, statusIdx + 1).setValue("sent");
-            sheet.getRange(i + 1, headers.indexOf("sent_at") + 1).setValue(new Date());
-          } catch (e) {
-            sheet.getRange(i + 1, statusIdx + 1).setValue("error: " + e.toString());
-          }
-        }
-      }
-    }
+   /**
+    * Ye function EK BAAR run karna hai taaki har 1 minute me script auto-run ho
+    */
+   function setupTrigger() {
+     var triggers = ScriptApp.getProjectTriggers();
+     for (var i = 0; i < triggers.length; i++) {
+       ScriptApp.deleteTrigger(triggers[i]);
+     }
+     
+     ScriptApp.newTrigger('processEmailQueue')
+       .timeBased()
+       .everyMinutes(1)
+       .create();
+     
+     console.log("Trigger setup successful!");
+     processEmailQueue(); 
+   }
 
-    /**
-     * Run this ONCE to set up the 1-minute automation
-     */
-    function setupTrigger() {
-      var triggers = ScriptApp.getProjectTriggers();
-      for (var i = 0; i < triggers.length; i++) {
-        ScriptApp.deleteTrigger(triggers[i]);
-      }
-      ScriptApp.newTrigger('processEmailQueue')
-        .timeBased()
-        .everyMinutes(1)
-        .create();
-    }
-    ```
-4.  Click **Save** (disk icon) and name the project "MOM Email Automator".
-5.  **Method 1: Automation Script**
-    *   In the toolbar, select **`setupTrigger`** from the dropdown and click **Run**.
-    *   Grant permissions when prompted. The bot is now 100% automated!
+   ```
+4. Click **Save** (disk icon) and name the project "MOM Email Automator".
+5. **Method 1: Automation Script**
 
-6.  **Method 2: Manual Trigger (Alternative)**
-    *   If you don't see `setupTrigger`, click the **Triggers ⏰** icon on the left sidebar.
-    *   Click **+ Add Trigger** (bottom right).
-    *   Choose: `processEmailQueue`
-    *   Select event source: `Time-driven`
-    *   Select type: `Minutes timer`
-    *   Interval: `Every minute`
-    *   Click **Save**.
+   * In the toolbar, select **`setupTrigger`** from the dropdown and click **Run**.
+   * Grant permissions when prompted. The bot is now 100% automated!
+6. **Method 2: Manual Trigger (Alternative)**
+
+   * If you don't see `setupTrigger`, click the **Triggers ⏰** icon on the left sidebar.
+   * Click **+ Add Trigger** (bottom right).
+   * Choose: `processEmailQueue`
+   * Select event source: `Time-driven`
+   * Select type: `Minutes timer`
+   * Interval: `Every minute`
+   * Click **Save**.
 
 ---
 
@@ -188,6 +211,7 @@ FRONTEND_URL="http://localhost:5173"
 ## 💻 5. Running the Application Locally
 
 ### Step 5.1: Backend Initialization (FastAPI)
+
 1. Open a terminal and navigate to exactly `backend/`.
 2. Create and activate a dedicated virtual environment:
    ```bash
@@ -195,7 +219,7 @@ FRONTEND_URL="http://localhost:5173"
 
    # For Windows PowerShell
    .\.venv\Scripts\Activate.ps1
-   
+
    # For macOS/Linux Git Bash
    source .venv/bin/activate
    ```
@@ -207,9 +231,11 @@ FRONTEND_URL="http://localhost:5173"
    ```bash
    uvicorn app.main:app --reload
    ```
+
    *The backend will be live at `http://localhost:8000` with Swagger Docs at `/docs`.*
 
 ### Step 5.2: Frontend Initialization (React/Vite)
+
 1. Open a separate terminal window and switch to `frontend/`.
 2. Install package node modules:
    ```bash
@@ -219,6 +245,7 @@ FRONTEND_URL="http://localhost:5173"
    ```bash
    npm run dev
    ```
+
    *Navigate your browser to `http://localhost:5173` to see the rich Botivate UI.*
 
 ---
@@ -241,9 +268,13 @@ FRONTEND_URL="http://localhost:5173"
 5. **Branding Not Reflecting:** Ensure you have restarted the backend server after modifying `.env` variables.
 
 ---
+
 ## 📄 Documentation Reference
+
 - [CREDENTIALS_GUIDE.md](CREDENTIALS_GUIDE.md): Detailed steps for API keys.
 - [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md): Guide for cloud deployment.
 - [WHITE_LABEL_GUIDE.md](WHITE_LABEL_GUIDE.md): Detailed white-label architecture.
+
 ---
+
 *Botivate Services LLP © 2026. Secure Governance on Autopilot.*
