@@ -54,38 +54,20 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
         getDevices();
     }, []);
 
-    // Timer & Signal Logic
+    // Timer Logic
     useEffect(() => {
         let timer: number | null = null;
-        let signalTimer: number | null = null;
         
         if (isRecording && !isPaused) {
             timer = window.setInterval(() => setTime(prev => prev + 1), 1000);
-            
-            if (isOnline) {
-                signalTimer = window.setInterval(async () => {
-                    try {
-                        const res = await api.get('/recording/system/signal', {
-                            params: { meeting_id: meetingId, meeting_type: meetingType }
-                        });
-                        if (res?.data && typeof res.data.level === 'number') {
-                            setSignalLevel(res.data.level);
-                        }
-                    } catch (e) {
-                        // ignore poll errors
-                    }
-                }, 300);
-            }
         } else {
             if (timer) clearInterval(timer);
-            if (signalTimer) clearInterval(signalTimer);
         }
         
         return () => { 
             if (timer) clearInterval(timer); 
-            if (signalTimer) clearInterval(signalTimer); 
         };
-    }, [isRecording, isPaused, isOnline, meetingId, meetingType]);
+    }, [isRecording, isPaused]);
 
     const formatTime = (seconds: number) => {
         const hrs = Math.floor(seconds / 3600);
@@ -95,26 +77,39 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
     };
 
     const startRecording = async () => {
-        if (isOnline) {
-            try {
-                await api.post('/recording/system/start', { meeting_id: meetingId, meeting_type: meetingType });
-                setIsRecording(true);
-                setTime(0);
-                toast.success("System recording started");
-            } catch (err) {
-                console.error('[Mic Debug] Start Error:', err);
-                toast.error("Failed to start system recording");
-            }
-            return;
-        }
-
         try {
-            console.log('[Mic Debug] Starting with Device:', selectedDeviceId);
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { 
-                    deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-                } 
-            });
+            let stream: MediaStream;
+            let displayStream: MediaStream | null = null;
+            
+            if (isOnline) {
+                // Online meeting -> Capture SYSTEM SOUND via Screen Share
+                displayStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true, // Browser requires video to be true to capture screen
+                    audio: true
+                });
+                
+                const audioTracks = displayStream.getAudioTracks();
+                if (audioTracks.length === 0) {
+                    displayStream.getTracks().forEach(t => t.stop());
+                    toast.error("Please make sure to check 'Share tab audio' or 'Share system audio' in the browser popup!");
+                    return;
+                }
+                
+                stream = new MediaStream([audioTracks[0]]);
+                
+                // Auto-stop if user clicks "Stop Sharing" on Chrome's floating bar
+                const videoTrack = displayStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.onended = () => stopRecording();
+                }
+            } else {
+                // Offline meeting -> Capture MICROPHONE
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { 
+                        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+                    } 
+                });
+            }
             
             const options = { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 128000 };
             mediaRecorderRef.current = new MediaRecorder(stream, options);
@@ -123,17 +118,20 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
             mediaRecorderRef.current.ondataavailable = (e) => {
                 if (e.data.size > 0) {
                     audioChunksRef.current.push(e.data);
-                    console.log(`[Mic Debug] LIVE Chunk: ${e.data.size} bytes`);
                 }
             };
 
             mediaRecorderRef.current.onstop = async () => {
                 const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                console.log('[Mic Debug] FINAL SIZE:', blob.size);
+                
+                // Stop all tracks to release hardware and remove sharing indicator
+                stream.getTracks().forEach(t => t.stop());
+                if (displayStream) displayStream.getTracks().forEach(t => t.stop());
+
                 await finalizeMeeting(blob);
             };
 
-            // Signal monitor setup
+            // Signal monitor setup (works for both Mic and System sound perfectly!)
             audioContextRef.current = new AudioContext();
             analyserRef.current = audioContextRef.current.createAnalyser();
             const source = audioContextRef.current.createMediaStreamSource(stream);
@@ -153,32 +151,20 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
             mediaRecorderRef.current.start(1000);
             setIsRecording(true);
             setTime(0);
-            toast.success("Recording System Active");
+            toast.success(isOnline ? "System audio recording started" : "Recording System Active");
         } catch (err) {
-            console.error('[Mic Debug] Start Error:', err);
-            toast.error("Microphone Error: Please check device selection.");
+            console.error('Start Error:', err);
+            if (isOnline) {
+                toast.error("Screen Share cancelled or Audio not allowed.");
+            } else {
+                toast.error("Microphone Error: Please check device selection.");
+            }
         }
     };
 
-    const stopRecording = async () => {
-        if (isOnline) {
-            setIsProcessing(true);
-            try {
-                await api.post('/recording/system/stop', { meeting_id: meetingId, meeting_type: meetingType });
-                setIsRecording(false);
-                toast.success("Intelligence report is generating...");
-                if (onComplete) onComplete();
-            } catch (err) {
-                console.error('System recording stop error:', err);
-                toast.error("Failed to stop system recording");
-                setIsProcessing(false);
-            }
-            return;
-        }
-
-        if (mediaRecorderRef.current) {
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             mediaRecorderRef.current.stop();
-            mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
             setIsRecording(false);
         }
