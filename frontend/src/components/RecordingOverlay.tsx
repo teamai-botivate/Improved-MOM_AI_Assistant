@@ -82,42 +82,31 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
             let displayStream: MediaStream | null = null;
             
             if (isOnline) {
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                
-                if (isMobile) {
-                    // Mobile & Tablet: System audio capture is impossible natively in browser
-                    toast.error("Mobile Browsers cannot record internal audio directly due to OS security. Please use Desktop for system audio capture.", { duration: 6000 });
-                    return;
-                }
-
-                // Desktop: Online meeting -> Request Screen Share with System Audio Mandatory
-                toast.loading("Click 'Share', select 'Entire Screen' or 'Tab', and CHECK 'Share Audio'!!", { duration: 6000 });
+                // Online meeting -> Request Screen/System Audio
+                toast.loading("Click 'Start', select 'Entire Screen' or 'Tab', and CHECK 'Share Audio'!!", { duration: 6000 });
                 
                 try {
+                    // Note: On Mobile, getDisplayMedia might not offer audio sharing in many browsers.
                     displayStream = await navigator.mediaDevices.getDisplayMedia({
                         video: true, 
-                        audio: {
-                            echoCancellation: false, // Turn off for cleaner system sound
-                            noiseSuppression: false,
-                            autoGainControl: false
-                        }
+                        audio: true
                     });
                     
                     const audioTracks = displayStream.getAudioTracks();
                     if (audioTracks.length === 0) {
                         displayStream.getTracks().forEach(t => t.stop());
-                        toast.error("Capture Failed: System Audio checkmark was NOT checked!");
+                        toast.error("CAPTURE FAILED: No system audio track found. Please ensure 'Share Audio' is checked (Desktop) or your device supports internal audio capture (Mobile).");
                         return;
                     }
                     
-                    // We only take the system audio track (Mic is NOT used)
+                    // Force System-Only Audio (No Mic)
                     stream = new MediaStream([audioTracks[0]]);
                     
                     const videoTrack = displayStream.getVideoTracks()[0];
                     if (videoTrack) videoTrack.onended = () => stopRecording();
                 } catch (e) {
-                    console.error("System audio capture error:", e);
-                    toast.error("System audio capture cancelled or failed.");
+                    console.error("Capture Error:", e);
+                    toast.error("Process Cancelled or Unsupported on this device.");
                     return;
                 }
             } else {
