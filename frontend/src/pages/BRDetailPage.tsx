@@ -306,9 +306,14 @@ export default function BRDetailPage() {
             {/* ── Resolution Details ── */}
             {meeting.discussion && (
                 <Section title="Resolution Wording" icon={<CheckCircleIcon className="w-[18px] h-[18px]" />}>
-                    <p className="text-[14px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed font-medium bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                        {meeting.discussion.summary_text}
-                    </p>
+                    <div 
+                        className="text-[14px] text-slate-700 dark:text-slate-300 leading-relaxed font-medium bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2"
+                        dangerouslySetInnerHTML={{ 
+                            __html: (meeting.discussion.summary_text || "")
+                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                .replace(/\n/g, '<br/>')
+                        }} 
+                    />
                 </Section>
             )}
 
