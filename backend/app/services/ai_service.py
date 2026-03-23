@@ -186,16 +186,17 @@ class AIService:
         beautify_chain = beautify_prompt | llm | StrOutputParser()
         formatted_summary = await beautify_chain.ainvoke({"summaries": combined_summaries_text})
 
-        # 4. Dashboard Stage (Short Point-wise Summary)
-        logger.info("📊 [DEBUG] Extracting concise dashboard summary points...")
+        # 4. Dashboard Stage (Balanced Narrative Summary for UI Autofill)
+        logger.info("📊 [DEBUG] Extracting balanced dashboard summary points...")
         dashboard_prompt = ChatPromptTemplate.from_template(
-            "Generate a BALANCED LONG-FORM DISCUSSION SUMMARY report for a dashboard view based on these summaries. "
-            "Create a clear narrative of the conversation, structured with topic-wise sections. "
-            "Include a section at the end titled 'AI SUGGESTED TASKS' listing instructions and responsible parties. "
+            "Generate a BALANCED PROFESSIONAL DISCUSSION SUMMARY for a web dashboard/detail page. "
+            "Use a clear narrative style with topic-wise headers (Context:, New Office Setup:, Action Items:, etc.). "
+            "Include an explicit 'AI SUGGESTED TASKS' section at the end for the admin. "
             "\n\nCRITICAL INSTRUCTIONS: "
-            "1. Return the response in PLAIN TEXT but use simple structure (headers, dashes for bullets). "
-            "2. Capture nuance and context efficiently—aim for 250-400 words total. "
-            "3. NO SYMBOLS: Do NOT use hashtags (#), bolding (**), italics (*), checkboxes ( [ ] ) or emojis. Use only simple text and dashes (-) for bullet points."
+            "1. Return as PLAIN TEXT but use simple structure (headers + dashes for bullets). "
+            "2. Aim for a BALANCED LENGTH (approx. 200-350 words total). "
+            "3. Professional English: Even if discussions were in Hindi/Hinglish, provide the output in professional English. "
+            "4. NO EMOJIS OR SYMBOLS: Strictly avoid using any icons, checkmarks, or markdown formatting symbols like bolding (**), italics (*), or hashtags (#)."
             "\n\nSummaries:\n{summaries}"
         )
         dashboard_chain = dashboard_prompt | llm | StrOutputParser()
