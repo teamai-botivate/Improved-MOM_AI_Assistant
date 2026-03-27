@@ -15,7 +15,14 @@
   3.  Home Screen (Dashboard) Ko Samjhein
   4.  Nayi Meeting Kaise Schedule Karein
   5.  Meetings List Page Ko Samjhein
-  6.  MOM Kaise Record / Log Karein (Minutes of Meeting)
+  6.  MOM Kaise Record / Log Karein- **Strategic AI Intelligence (Agenda-Aware):** AI handles meeting summaries by mapping discussions directly to the **Official Agenda**. It distinguishes between "Material Strategic Figures" (e.g., Invested Capital) and "Conversational Noise" (e.g., minor calculation errors), ensuring professional, outcome-focused MOMs.
+- **Flawless Speech-to-Text:** Uses AssemblyAI Cloud STT for highly accurate multilingual transcription (Hindi, English, Hinglish).
+- **Intelligent Task Extraction:** Every meeting now includes **Strict Action Items** and **Recommended Tasks**, extracted from across the entire conversation.
+- **Google Cloud Integration:** Full archival system using **Google Sheets** as a comprehensive database and **Google Drive** for secure document storage.
+- **Board Resolution (BR) Management:** Specialized workflow for high-stakes resolutions with meeting-specific folder archival and governance evidence tracking.
+- **Automated Notifications:** Dispatches professional summary emails with dynamically generated, meticulously styled PDFs featuring **Full Unicode support (Rupee ₹ symbol)**.
+- **Professional UI Rendering:** Clean dashboard views with automatic Markdown rendering (Professional Headings) and responsive layouts that handle long Zoom links.
+- **Dynamic White-Labeling:** Fully customizable branding (Company Name, Address, Logo) and optional "Powered by Botivate" attribution.
   7.  Pehle Se Recorded File Kaise Upload Karein
   8.  Seedha MOM Ke Saath Meeting Kaise Banayein
   9.  Meeting Details Page Ko Samjhein
@@ -532,6 +539,10 @@ khaas meeting ki detailed page dikhti hai.
 
 --- DISCUSSION SUMMARY ---
   Ek text area jo dikhata hai ki kya discuss hua.
+  Formatting:
+    - AI ab professional "Markdown Rendering" use karta hai.
+    - Saare main topics **BOLD UPPERCASE HEADERS** mein dikhenge.
+    - Unke niche ke details normal bullet points mein honge.
   Text badalne ke liye [Edit] (pencil icon) button pe click karein.
   Edit karne ke baad [Save] pe click karein taaki changes save hon.
 
@@ -702,9 +713,10 @@ Step 3: Ek PDF file generate hogi aur aapke computer mein download
 
 PDF mein ye hota hai:
   - Meeting ka title, date, time, venue
+  - Full Unicode Support: Ab Rupee (₹) symbol aur special characters PDF mein saaf dikhte hain.
   - Organization aur host ki details
   - Saare attendees ki list unke attendance status ke saath
-  - Poori discussion summary
+  - Poori discussion summary (Bold Headers ke saath)
   - Saare action items/tasks assignees aur deadlines ke saath
   - Poora agenda
 
@@ -727,11 +739,12 @@ Stage 1 - AWAAZ SE TEXT (Transcription):
   karta hai. Har speaker ko alag pehchana jaata hai (Speaker A,
   Speaker B, wagairah).
 
-Stage 2 - SAMAJHDAAR SUMMARY (AI Analysis):
-  Likhe hue text ko ek AI assistant analyze karta hai jo:
-    a) Key highlights aur decisions pehchanta hai
-    b) Ek formal, professional meeting summary English mein banata hai
-    c) Dashboard ke liye chhota, point-wise summary banata hai
+Stage 2 - STRATEGIC SAMAJHDAAR SUMMARY (AI Analysis):
+  Likhe hue text ko ek AI assistant analyze karta hai jo "Strategic Intelligence" use karta hai:
+    a) Agenda Mapping: Meeting mein jo baat hui use sidha "Official Agenda" se link kiya jaata hai.
+    b) Noise Filtering: AI ab "Conversational Noise" (jaise 400g ya 500g ki mamuli galti) ko ignore karta hai aur sirf "Material Strategic Figures" (jaise Final ₹2 Crore Investment) par focus karta hai.
+    c) Decision & Task Extraction: Dashboard ke liye point-wise summary banata hai jisme hamesha **'DECISIONS MADE'** aur **'RECOMMENDED TASKS'** ka alag section hota hai.
+    d) Professional Hierarchy: Summary mein Headers Hamesha BOLD UPPERCASE honge taaki padhne mein asaani ho.
 
 Stage 3 - DOCUMENT BANANA (PDF Generation):
   Teen PDF documents bante hain:

@@ -6,16 +6,15 @@ Botivate is an intelligent, agentic system designed to autonomously handle, anal
 
 ## 🚀 Key Features
 
-- **Agentic Summarization:** The system autonomously drafts MOMs (Minutes of Meeting), identifies key topics, and maps conversations to specific agendas using advanced LangChain LLM pipelines.
-- **Flawless Speech-to-Text:** Uses AssemblyAI Cloud STT for highly accurate multilingual transcription (Hindi, English, Hinglish).
-- **Intelligent Task Extraction:** Action items are automatically isolated, categorized, and assigned to respective owners without manual intervention.
-- **Google Cloud Integration:** Full archival system using **Google Sheets** as a comprehensive database and **Google Drive** for secure document storage.
-- **Board Resolution (BR) Management:** Specialized workflow for high-stakes resolutions with meeting-specific folder archival and governance evidence tracking.
-- **Automated Notifications:** Botivate automatically dispatches professional summary emails, task assignments, and absence warnings. It uses a **Google Sheets-backed Queue** processed by **Google Apps Script** to ensure 100% email delivery bypasses cloud platform port restrictions.
-- **Dynamic PDF Integration:** Emails include direct, secure **Google Drive download links** for dynamically generated, meticulously styled MOM and Executive Briefing PDFs.
-- **Rich Analytics Dashboard:** Gain deep insights into team productivity, meeting frequency trends, attendance rates, and action-item completion metrics.
-- **Dynamic White-Labeling:** Fully customizable branding (Company Name, Address, Logo) and optional "Powered by Botivate" attribution via environment variables.
-- **Modern & Premium UI:** Designed with a sleek, minimalist dark/light mode interface characterized by glassmorphism, dynamic animations, and brand-consistent styling.
+- **Strategic AI Intelligence (Agenda-Aware):** AI maps discussions directly to the **Official Agenda**, distinguishing between "Material Strategic Figures" (e.g., Invested Capital) and "Conversational Noise" (e.g., minor calculation errors) for outcome-focused reports.
+- **Intelligent Task Extraction:** Automatically isolates, categorizes, and assigns **Action Items** and **Recommended Tasks** from meeting segments.
+- **Automated Notification Ecosystem:** Dispatches professional summary emails, task assignments, and absence warnings. Uses a **Google Sheets-backed Queue** (processed via Google Apps Script) to bypass cloud port restrictions and ensure 100% email delivery.
+- **Hybrid Meeting Modes:** Supports both **Online** (Zoom/Meet/Teams links with word-wrap support) and **Offline** (Physical venue tracking) meeting setups.
+- **Dynamic PDF Integration:** Meticulously styled Executive Briefing and MOM PDFs with **Full Unicode support (Rupee ₹ symbol)** and professional Markdown rendering.
+- **Google Cloud Archive:** Full enterprise integration with **Google Sheets** (database) and **Google Drive** (hierarchical folder-based storage).
+- **Flawless Speech-to-Text:** Uses AssemblyAI for high-fidelity multilingual transcription (Hindi, English, Hinglish).
+- **Board Resolution (BR) Management:** Formal workflow for high-stakes governance with specialized branding and automated compliance tracking.
+- **Modern & Premium UI:** Sleek, minimalist design featuring glassmorphism, responsive detail cards, and brand-consistent dark/light modes.
 
 ---
 
@@ -30,32 +29,33 @@ graph TD
     classDef db fill:#0d1117,stroke:#399dff,stroke-width:2px,color:#fff
     classDef external fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#000
 
-    A(Admin / HR) -->|"1. Schedules Meeting"| B[Botivate Dashboard]
-    B -->|"2. API Router"| C(FastAPI Backend)
-    C <-->|"3. Persists Data"| D[(Google Sheets Engine)]
+    A(Admin) -->|"1. Schedules Meeting / Resolution"| B[Botivate Dashboard]
+    B -->|"2. Hybrid Selection"| C{Online Link / Offline Venue}
+    C -->|"3. Save Metadata"| D[(Google Sheets Engine)]
     
-    A -->|"4. Uploads Recording"| E{AI Processing Pipeline}
+    A -->|"4. Record / Upload Audio"| E[AI Orchestration Pipeline]
     
-    subgraph Intelligence Core
-        E -->|"STT Processing"| F[AssemblyAI Transcriber]
-        F --> G{LangChain Mapping & Reduction}
-        G -->|"Analyzes Context"| H[Aggregated MOM & Executive Brief]
-        G -->|"Identifies Tasks"| I[Action Mandates]
+    subgraph Intelligence Ecosystem
+        E -->|"STT"| F[AssemblyAI Transcriber]
+        F -->|"Transcript"| G{LangChain LLM Engine}
+        D -- "Official Agenda Context" --> G
+        G -->|"Agenda-Aware Synthesis"| H[Strategic Highlights & Briefing]
+        G -->|"Extraction"| I[Action Mandates & Recommendations]
     end
     
-    H --> J[Finalized Documentation]
-    I --> J
+    H & I -->|"5. Design Engine"| J[ReportLab PDF Generator]
+    J -->|"Archive"| K[Google Drive Repository]
     
-    J -->|"5. Triggers PDF Engine"| K[ReportLab Generator]
-    K -->|"Uploads Archive"| L[Google Drive Storage]
+    K -->|"6. Push to Queue"| L[Google Sheets Notification Queue]
+    L -->|"7. Automated Dispatch"| M[Google Apps Script Agent]
     
-    L -->|"6. Triggers Mailer"| M[Automated Email Agent]
-    M -->|"7. Dispatches Secure Email"| N((Stakeholders))
+    M -->|"8. Stakeholder Summary Email"| N((Attendees))
+    M -->|"9. Targeted Task Email"| O((Task Owners))
 
-    class A,N user;
-    class E,F,G,H,I,M agent;
-    class D,L db;
-    class B,C external;
+    class A,N,O user;
+    class E,G,H,I,M agent;
+    class D,K,L db;
+    class B,C,F,J external;
 ```
 
 ---
