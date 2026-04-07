@@ -116,5 +116,10 @@ graph TD
 
 Please refer to the [SETUP.md](SETUP.md) for local installation and the [CREDENTIALS_GUIDE.md](CREDENTIALS_GUIDE.md) for a detailed step-by-step on obtaining all necessary API keys (OpenAI, AssemblyAI, Gmail SMTP, Google Cloud).
 
+## 🌐 Live Deployment
+
+- Frontend: [https://improved-mom-ai-assistant.onrender.com](https://improved-mom-ai-assistant.onrender.com)
+- Backend: [https://improved-backend-mom-ai-assistant.onrender.com](https://improved-backend-mom-ai-assistant.onrender.com)
+
 ---
 *Botivate Services LLP © 2026. Powering Businesses On Autopilot.*
