@@ -61,6 +61,18 @@ export default function ScheduleMeetingPage() {
       agenda_items: p.agenda_items.map((a, idx) => (idx === i ? { ...a, [field]: value } : a)),
     }));
 
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== 'Enter') return;
+
+    const target = e.target as HTMLElement;
+    const isTextArea = target instanceof HTMLTextAreaElement;
+    const isSubmitButton = target instanceof HTMLButtonElement && target.type === 'submit';
+
+    if (!isTextArea && !isSubmitButton) {
+      e.preventDefault();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) {
@@ -112,7 +124,7 @@ export default function ScheduleMeetingPage() {
       </button>
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Schedule New Meeting</h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="space-y-6">
         {/* Meeting Details */}
         <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Meeting Details</h3>
