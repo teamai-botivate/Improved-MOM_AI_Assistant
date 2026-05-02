@@ -236,31 +236,65 @@ def generate_transcript_pdf(title: str, date: str, transcript_text: str) -> byte
     elements.append(Spacer(1, 8))
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#4f46e5"), spaceAfter=12))
 
-    # Split transcript into lines and number them
-    lines = transcript_text.split('\n')
-    for i, line in enumerate(lines, 1):
-        stripped = line.strip()
-        if not stripped:
-            elements.append(Spacer(1, 6))
-            continue
+    # Split transcript into lines and number them.
+    # Build one multi-row Table (which CAN split across pages at row boundaries),
+    # instead of one single-row Table per line (which CANNOT split — that was the
+    # source of reportlab.platypus.doctemplate.LayoutError on long transcripts).
+    raw_lines = transcript_text.split('\n')
 
-        # Format: line number + monospace text
-        row_data = [[
-            Paragraph(f"<font color='#94a3b8'>{i:04d}</font>", line_num_style),
-            Paragraph(stripped, body_style)
-        ]]
-        t = Table(row_data, colWidths=[35, PAGE_W - 100])
-        t.setStyle(TableStyle([
+    # A single physical line that's longer than what fits on a page (e.g. an
+    # AI returns the entire transcript as one paragraph) would still produce
+    # a row taller than the page frame. Pre-chunk any such line so each row
+    # stays well within page height.
+    MAX_CHARS_PER_ROW = 400
+
+    def _chunk_line(text: str) -> list:
+        if len(text) <= MAX_CHARS_PER_ROW:
+            return [text]
+        chunks = []
+        remaining = text
+        while len(remaining) > MAX_CHARS_PER_ROW:
+            split_at = remaining.rfind(' ', 0, MAX_CHARS_PER_ROW)
+            if split_at <= 0:
+                split_at = MAX_CHARS_PER_ROW
+            chunks.append(remaining[:split_at].rstrip())
+            remaining = remaining[split_at:].lstrip()
+        if remaining:
+            chunks.append(remaining)
+        return chunks
+
+    table_rows = []
+    line_no = 0
+    for raw in raw_lines:
+        stripped = raw.strip()
+        if not stripped:
+            # Preserve blank line as an empty row (gives visual paragraph break)
+            table_rows.append(["", ""])
+            continue
+        for chunk in _chunk_line(stripped):
+            line_no += 1
+            table_rows.append([
+                Paragraph(f"<font color='#94a3b8'>{line_no:04d}</font>", line_num_style),
+                Paragraph(chunk, body_style),
+            ])
+
+    if table_rows:
+        transcript_table = Table(
+            table_rows,
+            colWidths=[35, PAGE_W - 100],
+            splitByRow=1,
+        )
+        transcript_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 1),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
         ]))
-        elements.append(t)
+        elements.append(transcript_table)
 
     # End marker
     elements.append(Spacer(1, 20))
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#cbd5e1"), spaceAfter=8))
-    elements.append(Paragraph(f"<i>— End of Transcript ({len(lines)} lines) —</i>", meta_style))
+    elements.append(Paragraph(f"<i>— End of Transcript ({line_no} lines) —</i>", meta_style))
 
     doc.build(elements, onFirstPage=_transcript_header_footer, onLaterPages=_transcript_header_footer)
     result = buffer.getvalue()
