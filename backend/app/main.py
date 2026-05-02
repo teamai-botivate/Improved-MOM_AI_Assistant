@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.api.router import api_router
+from app.api.logs import install_buffer_handler
 from app.services.scheduler_service import start_scheduler, shutdown_scheduler
 from app.services.google_sheets_service import init_sheets
 
@@ -20,6 +21,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uvicorn") # Use uvicorn's logger settings
 logging.getLogger("recording_api").setLevel(logging.INFO)
 logging.getLogger("ai_service").setLevel(logging.INFO)
+
+install_buffer_handler()
 
 settings = get_settings()
 

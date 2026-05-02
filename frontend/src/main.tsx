@@ -5,7 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import App from './App';
 import AppErrorBoundary from './components/AppErrorBoundary';
+import { startBackendLogMirror } from './api';
 import './index.css';
+
+startBackendLogMirror();
 
 const queryClient = new QueryClient({
   defaultOptions: {

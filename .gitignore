@@ -5,7 +5,11 @@ __pycache__/
 api_keys.json
 *.json
 !package.json
+!package-lock.json
 !tsconfig.json
+!tsconfig.node.json
+!vercel.json
+!frontend/**/*.json
 google_credentials.json
 .env
 uploads/
