@@ -26,6 +26,7 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
     const [signalLevel, setSignalLevel] = useState(0);
+    const [captureUnavailableReason, setCaptureUnavailableReason] = useState<string | null>(null);
     
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
@@ -33,10 +34,35 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+    const hasShownWakeLockWarningRef = useRef(false);
+
+    const getCaptureUnavailableReason = () => {
+        if (!window.isSecureContext) {
+            return "Microphone capture requires HTTPS or localhost. Open this app with https:// or run it directly on localhost.";
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia) {
+            return "This browser does not expose microphone capture. Check browser support and microphone permissions.";
+        }
+
+        return null;
+    };
+
+    const showCaptureUnavailable = (reason = getCaptureUnavailableReason()) => {
+        setCaptureUnavailableReason(reason);
+        toast.error(reason, { duration: 9000 });
+    };
 
     // Get devices on mount
     useEffect(() => {
         const getDevices = async () => {
+            const unavailableReason = getCaptureUnavailableReason();
+            if (unavailableReason) {
+                setCaptureUnavailableReason(unavailableReason);
+                return;
+            }
+
             try {
                 // Request temporary access to get labels
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -49,6 +75,7 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
                 stream.getTracks().forEach(t => t.stop());
             } catch (err) {
                 console.error('Error fetching devices:', err);
+                setCaptureUnavailableReason("Could not access the microphone. Allow microphone permission in the browser and try again.");
             }
         };
         getDevices();
@@ -69,6 +96,27 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
         };
     }, [isRecording, isPaused]);
 
+    useEffect(() => {
+        const restoreWakeLock = () => {
+            if (document.visibilityState === 'visible' && isRecording) {
+                void requestScreenWakeLock(false);
+            }
+        };
+
+        document.addEventListener('visibilitychange', restoreWakeLock);
+        return () => document.removeEventListener('visibilitychange', restoreWakeLock);
+    }, [isRecording]);
+
+    useEffect(() => {
+        return () => {
+            void releaseScreenWakeLock();
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                void audioContextRef.current.close();
+            }
+        };
+    }, []);
+
     const formatTime = (seconds: number) => {
         const hrs = Math.floor(seconds / 3600);
         const mins = Math.floor((seconds % 3600) / 60);
@@ -76,8 +124,60 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
         return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const requestScreenWakeLock = async (showWarning: boolean) => {
+        if (wakeLockRef.current && !wakeLockRef.current.released) return true;
+
+        if (!navigator.wakeLock) {
+            if (showWarning && !hasShownWakeLockWarningRef.current) {
+                toast.error(window.isSecureContext
+                    ? "This browser does not support keeping the screen awake during recording."
+                    : "Screen wake lock requires HTTPS or localhost.",
+                    { duration: 7000 }
+                );
+                hasShownWakeLockWarningRef.current = true;
+            }
+            return false;
+        }
+
+        try {
+            wakeLockRef.current = await navigator.wakeLock.request('screen');
+            wakeLockRef.current.onrelease = () => {
+                wakeLockRef.current = null;
+            };
+            return true;
+        } catch (err) {
+            console.warn('Wake lock request failed:', err);
+            if (showWarning && !hasShownWakeLockWarningRef.current) {
+                toast.error("Could not keep the screen awake. Keep this tab visible while recording.", { duration: 7000 });
+                hasShownWakeLockWarningRef.current = true;
+            }
+            return false;
+        }
+    };
+
+    const releaseScreenWakeLock = async () => {
+        const wakeLock = wakeLockRef.current;
+        wakeLockRef.current = null;
+
+        if (wakeLock && !wakeLock.released) {
+            try {
+                await wakeLock.release();
+            } catch (err) {
+                console.warn('Wake lock release failed:', err);
+            }
+        }
+    };
+
     const startRecording = async () => {
         try {
+            const unavailableReason = getCaptureUnavailableReason();
+            if (unavailableReason) {
+                showCaptureUnavailable(unavailableReason);
+                return;
+            }
+
+            await requestScreenWakeLock(true);
+
             let stream: MediaStream;
             let displayStream: MediaStream | null = null;
             
@@ -86,6 +186,12 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
                 toast.loading("Click 'Start', and IF shown, CHECK 'Share Audio'!!", { duration: 6000 });
                 
                 try {
+                    if (!navigator.mediaDevices.getDisplayMedia) {
+                        toast.error("Screen/system audio capture is not supported by this browser.");
+                        await releaseScreenWakeLock();
+                        return;
+                    }
+
                     // Modern constraints to nudge the browser
                     displayStream = await navigator.mediaDevices.getDisplayMedia({
                         video: true, 
@@ -111,6 +217,7 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
                         } else {
                             toast.error("CAPTURE FAILED: System Audio checkmark was NOT checked!");
                         }
+                        await releaseScreenWakeLock();
                         return;
                     }
                     
@@ -122,6 +229,7 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
                 } catch (e) {
                     console.error("Capture Error:", e);
                     toast.error("Process Cancelled or not supported by this browser.");
+                    await releaseScreenWakeLock();
                     return;
                 }
             } else {
@@ -149,6 +257,12 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
                 // Stop all tracks to release hardware and remove sharing indicator
                 stream.getTracks().forEach(t => t.stop());
                 if (displayStream) displayStream.getTracks().forEach(t => t.stop());
+                await releaseScreenWakeLock();
+                if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                    await audioContextRef.current.close();
+                    audioContextRef.current = null;
+                }
+                analyserRef.current = null;
 
                 await finalizeMeeting(blob);
             };
@@ -176,10 +290,21 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
             toast.success(isOnline ? "System audio recording started" : "Recording System Active");
         } catch (err) {
             console.error('Start Error:', err);
+            await releaseScreenWakeLock();
+            if (err instanceof DOMException && err.name === 'NotAllowedError') {
+                toast.error("Microphone permission was blocked. Allow microphone access in the browser and try again.");
+                return;
+            }
+
+            if (err instanceof DOMException && err.name === 'NotFoundError') {
+                toast.error("No microphone was found on this device.");
+                return;
+            }
+
             if (isOnline) {
                 toast.error("Screen Share cancelled or Audio not allowed.");
             } else {
-                toast.error("Microphone Error: Please check device selection.");
+                toast.error("Microphone Error: Please check browser permission and device selection.");
             }
         }
     };
@@ -189,6 +314,20 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
             mediaRecorderRef.current.stop();
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
             setIsRecording(false);
+            setIsPaused(false);
+        }
+    };
+
+    const togglePause = () => {
+        const recorder = mediaRecorderRef.current;
+        if (!recorder) return;
+
+        if (recorder.state === 'recording') {
+            recorder.pause();
+            setIsPaused(true);
+        } else if (recorder.state === 'paused') {
+            recorder.resume();
+            setIsPaused(false);
         }
     };
 
@@ -221,6 +360,11 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
 
     if (!isRecording) return (
         <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-200 dark:border-white/10 flex flex-col gap-4">
+            {captureUnavailableReason && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                    {captureUnavailableReason}
+                </div>
+            )}
             {!isOnline && (
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center">
@@ -264,7 +408,7 @@ const RecordingOverlay: React.FC<Props> = ({ meetingId, meetingType, meetingMode
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => setIsPaused(!isPaused)} className="p-3 bg-slate-100 dark:bg-white/5 rounded-2xl">
+                    <button onClick={togglePause} className="p-3 bg-slate-100 dark:bg-white/5 rounded-2xl">
                         {isPaused ? <PlayIcon className="w-6 h-6" /> : <PauseIcon className="w-6 h-6 text-brand-500" />}
                     </button>
                     <button onClick={stopRecording} className="px-6 py-3 bg-red-500 text-white rounded-2xl font-bold shadow-lg hover:bg-red-600">Finish</button>

@@ -208,6 +208,9 @@ cython_debug/
 # AI Models & Recordings
 .cache/
 temp_recordings/
+
+# Local HTTPS dev certificates
+frontend/certs/
 # Cursor
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
