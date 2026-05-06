@@ -16,7 +16,7 @@ Design principles
 import logging
 import os
 from datetime import datetime, date, time
-from typing import Any, Optional
+from typing import Any, Callable, Optional, TypeVar
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -128,6 +128,34 @@ SHEET_SCHEMAS: dict[str, list[str]] = {
 _client: gspread.Client | None = None
 _spreadsheet: gspread.Spreadsheet | None = None
 _worksheets: dict[str, gspread.Worksheet] = {}
+_T = TypeVar("_T")
+
+
+def _reset_google_sheets_state() -> None:
+    """Clear cached Google Sheets objects so the next operation reconnects."""
+    global _client, _spreadsheet, _worksheets
+    _client = None
+    _spreadsheet = None
+    _worksheets = {}
+    if "_sheets_cache" in globals():
+        _sheets_cache.clear()
+
+
+def _run_google_sheets_operation(context: str, operation: Callable[[], _T]) -> _T:
+    """Run an idempotent Google Sheets operation, resetting cached clients once on failure."""
+    try:
+        return operation()
+    except gspread.WorksheetNotFound:
+        raise
+    except Exception as e:
+        logger.warning(
+            "%s failed; resetting Google Sheets client and retrying once: %s",
+            context,
+            e,
+            exc_info=True,
+        )
+        _reset_google_sheets_state()
+        return operation()
 
 
 def _get_client() -> gspread.Client:
@@ -219,8 +247,10 @@ def _get_sheet_values(sheet_name: str) -> list[list[str]]:
         data, ts = _sheets_cache[sheet_name]
         if now - ts < _CACHE_TTL:
             return data
-    ws = get_worksheet(sheet_name)
-    all_vals = ws.get_all_values()
+    all_vals = _run_google_sheets_operation(
+        f"Reading Google Sheet '{sheet_name}'",
+        lambda: get_worksheet(sheet_name).get_all_values(),
+    )
     _sheets_cache[sheet_name] = (all_vals, now)
     return all_vals
 
@@ -268,7 +298,6 @@ class SheetsDB:
     @staticmethod
     def append_row(sheet_name: str, data: dict[str, Any]) -> dict[str, str]:
         """Append a new row.  Auto-sets 'id' if not provided."""
-        ws = get_worksheet(sheet_name)
         headers = SHEET_SCHEMAS.get(sheet_name)
         if not headers:
             # Fallback - try to get from first row of cached data
@@ -279,7 +308,7 @@ class SheetsDB:
             data["id"] = SheetsDB.next_id(sheet_name)
 
         row = [_serialise(data.get(col)) for col in headers]
-        ws.append_row(row, value_input_option="USER_ENTERED")
+        get_worksheet(sheet_name).append_row(row, value_input_option="USER_ENTERED")
         
         # Smart update: append to cache instead of invalidating and refetching immediately
         _update_cache(sheet_name, [row])
@@ -293,7 +322,6 @@ class SheetsDB:
         if not data_list:
             return []
             
-        ws = get_worksheet(sheet_name)
         headers = SHEET_SCHEMAS.get(sheet_name)
         if not headers:
             all_vals = _get_sheet_values(sheet_name)
@@ -311,7 +339,7 @@ class SheetsDB:
             rows_to_append.append(row)
             result_dicts.append(_row_to_dict(headers, row))
 
-        ws.append_rows(rows_to_append, value_input_option="USER_ENTERED")
+        get_worksheet(sheet_name).append_rows(rows_to_append, value_input_option="USER_ENTERED")
         
         # Batch cache update
         _update_cache(sheet_name, rows_to_append)
@@ -363,7 +391,6 @@ class SheetsDB:
     @staticmethod
     def update_row(sheet_name: str, record_id: int, updates: dict[str, Any]) -> dict[str, str] | None:
         """Update specific fields of a row by id."""
-        ws = get_worksheet(sheet_name)
         all_vals = _get_sheet_values(sheet_name)
         headers = SHEET_SCHEMAS.get(sheet_name, all_vals[0] if all_vals else ["id"])
 
@@ -372,13 +399,19 @@ class SheetsDB:
 
         for row_idx, row in enumerate(all_vals[1:], start=2):
             if _to_int(row[0] if row else "") == record_id:
-                for col_name, new_val in updates.items():
-                    if col_name in headers:
-                        col_idx = headers.index(col_name) + 1
-                        ws.update_cell(row_idx, col_idx, _serialise(new_val))
+                def apply_updates() -> list[str]:
+                    ws = get_worksheet(sheet_name)
+                    for col_name, new_val in updates.items():
+                        if col_name in headers:
+                            col_idx = headers.index(col_name) + 1
+                            ws.update_cell(row_idx, col_idx, _serialise(new_val))
+                    return ws.row_values(row_idx)
+
+                updated_row = _run_google_sheets_operation(
+                    f"Updating row in Google Sheet '{sheet_name}'",
+                    apply_updates,
+                )
                 _invalidate_cache(sheet_name)
-                # Re-fetch
-                updated_row = ws.row_values(row_idx)
                 return _row_to_dict(headers, updated_row)
         return None
 
@@ -386,11 +419,10 @@ class SheetsDB:
 
     @staticmethod
     def delete_row(sheet_name: str, record_id: int) -> bool:
-        ws = get_worksheet(sheet_name)
         all_vals = _get_sheet_values(sheet_name)
         for row_idx, row in enumerate(all_vals[1:], start=2):
             if _to_int(row[0] if row else "") == record_id:
-                ws.delete_rows(row_idx)
+                get_worksheet(sheet_name).delete_rows(row_idx)
                 _invalidate_cache(sheet_name)
                 logger.info("Deleted row %d from %s", row_idx, sheet_name)
                 return True
@@ -401,7 +433,6 @@ class SheetsDB:
     @staticmethod
     def delete_by_field(sheet_name: str, field: str, value: Any) -> int:
         """Delete all rows matching field==value. Returns count deleted."""
-        ws = get_worksheet(sheet_name)
         all_vals = _get_sheet_values(sheet_name)
         headers = SHEET_SCHEMAS.get(sheet_name, all_vals[0] if all_vals else ["id"])
         if field not in headers:
@@ -415,8 +446,13 @@ class SheetsDB:
                 rows_to_delete.append(row_idx)
 
         # Delete from bottom up so indices remain valid
-        for r in reversed(rows_to_delete):
-            ws.delete_rows(r)
+        def delete_rows() -> None:
+            ws = get_worksheet(sheet_name)
+            for r in reversed(rows_to_delete):
+                ws.delete_rows(r)
+
+        if rows_to_delete:
+            delete_rows()
 
         if rows_to_delete:
             _invalidate_cache(sheet_name)
@@ -594,11 +630,17 @@ def delete_from_drive(file_id: str):
         return
     try:
         from googleapiclient.discovery import build
+        from googleapiclient.errors import HttpError
         creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
         drive_service = build("drive", "v3", credentials=creds)
         # Using delete (permanent) instead of trash for cleanup
         drive_service.files().delete(fileId=file_id, supportsAllDrives=True).execute()
         logger.info("Permanently deleted object from Drive: %s", file_id)
+    except HttpError as e:
+        if getattr(e.resp, "status", None) == 404:
+            logger.info("Drive object already missing, skipping delete: %s", file_id)
+            return
+        logger.warning("Failed to delete object from Drive (%s): %s", file_id, e)
     except Exception as e:
         logger.warning("Failed to delete object from Drive (%s): %s", file_id, e)
 

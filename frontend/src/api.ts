@@ -1,25 +1,42 @@
 import axios from 'axios';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const ENABLE_API_LOGS = import.meta.env.DEV || import.meta.env.VITE_ENABLE_API_LOGS === 'true';
+const ENABLE_BACKEND_LOG_MIRROR = import.meta.env.VITE_ENABLE_BACKEND_LOG_MIRROR !== 'false';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
+type SilentAxiosConfig = {
+  _silent?: boolean;
+};
+
 // Request interceptor for debugging
 api.interceptors.request.use((config) => {
-  console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
+  const silentConfig = config as typeof config & SilentAxiosConfig;
+  silentConfig._silent = Boolean(config.url?.includes('/logs/'));
+
+  if (ENABLE_API_LOGS && !silentConfig._silent) {
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
+  }
   return config;
 });
 
 // Response interceptor for debugging
 api.interceptors.response.use(
   (response) => {
-    console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.status);
+    const silentConfig = response.config as typeof response.config & SilentAxiosConfig;
+    if (ENABLE_API_LOGS && !silentConfig._silent) {
+      console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.status);
+    }
     return response;
   },
   (error) => {
-    console.error(`[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.response?.status, error.response?.data);
+    const silentConfig = error.config as typeof error.config & SilentAxiosConfig | undefined;
+    if (ENABLE_API_LOGS && !silentConfig?._silent) {
+      console.error(`[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.response?.status, error.response?.data);
+    }
     return Promise.reject(error);
   }
 );
@@ -45,6 +62,7 @@ const _levelToConsole = (level: string): ((...args: unknown[]) => void) => {
 };
 
 export const startBackendLogMirror = (intervalMs = 2000): void => {
+  if (!ENABLE_BACKEND_LOG_MIRROR) return;
   if (_logPollerStarted) return;
   _logPollerStarted = true;
 
@@ -71,14 +89,6 @@ export const startBackendLogMirror = (intervalMs = 2000): void => {
       // Swallow errors silently to avoid console noise from CORS/preflight on cold start.
     }
   };
-
-  // Suppress the request/response interceptor logs for /logs/ to avoid feedback spam.
-  api.interceptors.request.use((config) => {
-    if (config.url?.includes('/logs/')) {
-      (config as unknown as { _silent?: boolean })._silent = true;
-    }
-    return config;
-  });
 
   void tick();
   setInterval(tick, intervalMs);
